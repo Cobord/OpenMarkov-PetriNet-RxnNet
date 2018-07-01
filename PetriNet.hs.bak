@@ -16,10 +16,31 @@ convert x
           | x <= 0 = Z
           | otherwise = S (convert (x-1))
 
+type family   Plus (n :: Nat) (m :: Nat) :: Nat
+type instance Plus Z m = m
+type instance Plus (S n) m = S (Plus n m)
+
 -- A List of length 'n' holding values of type 'a'
 data List n a where
     Nil  :: List Z a
     Cons :: a -> List m a -> List (S m) a
+
+data SNat n where
+  SZ :: SNat Z
+  SS :: SNat n -> SNat (S n)
+
+instance Show (SNat n) where
+  show SZ = "SZ"
+  show (SS x) = "SS " ++ (show x)
+  
+-- make a vector of length n filled with same things
+myReplicate :: SNat n -> a -> List n a
+myReplicate SZ     _ = Nil
+myReplicate (SS n) a = Cons a (myReplicate n a)
+
+sumNat2 :: SNat n -> SNat m -> SNat (Plus n m)
+sumNat2 SZ x = x
+sumNat2 (SS x) y = SS (sumNat2 x y)
 
 -- Just for visualization (a better instance would work with read)
 instance Show a => Show (List n a) where
@@ -51,12 +72,29 @@ getElement 0 (Cons x _) = Just x
 getElement m (Cons x xs) = getElement (m-1) xs
 getElement _ _ = Nothing
 
+appendLists :: List n a -> List m a -> List (Plus n m) a
+appendLists (Cons x xs) ys = Cons x (appendLists xs ys)
+appendLists Nil ys = ys
+
 type Matrix n m a = List n (List m a)
 -- same as g but on something that is n by m instead of just a 1 dimensional list
 g2 :: (a -> b -> c) -> (Matrix n m a) -> (Matrix n m b) -> (Matrix n m c)
 g2 f = g (g f)
 
+myReplicate2D :: SNat n -> SNat m -> a -> Matrix n m a
+myReplicate2D myN myM x = myReplicate myN (myReplicate myM x)
+
+horizantalBlocks :: Matrix n m1 a -> Matrix n m2 a -> Matrix n (Plus m1 m2) a
+horizantalBlocks mat1 mat2 = g appendLists mat1 mat2
+verticalBlocks :: Matrix n1 m a -> Matrix n2 m a -> Matrix (Plus n1 n2) m a
+verticalBlocks mat1 mat2 = appendLists mat1 mat2
+blockDiagonal :: (Num a) => SNat n1 -> SNat m1 -> SNat n2 -> SNat m2 -> Matrix n1 m1 a -> Matrix n2 m2 a -> Matrix (Plus n1 n2) (Plus m1 m2) a
+blockDiagonal myN1 myM1 myN2 myM2 mat1 mat2 = verticalBlocks (horizantalBlocks mat1 (myReplicate2D myN1 myM2 0)) (horizantalBlocks (myReplicate2D myN2 myM1 0) mat2)
+
 data Bounds n = List n Int :< List n Int
+
+appendBounds :: Bounds n -> Bounds m -> Bounds (Plus n m)
+appendBounds (lb1 :< ub1) (lb2 :< ub2) = (appendLists lb1 lb2) :< (appendLists ub1 ub2)
 
 -- all occ_i should be between l_i and u_i for the list of occupationNumbers, and lists of lower and upper Bounds
 withinBounds :: List numPlaces Int -> Bounds numPlaces -> Bool
@@ -98,7 +136,17 @@ wMinusEx = Cons wMinusT1Ex (Cons wMinusT2Ex Nil)
 occupationNumbersEx = Cons 1 $ Cons 0 $ Cons 2 $ Cons 1 Nil
 boundsEx = (Cons 0 $ Cons 0 $ Cons 0 $ Cons 0 Nil) :< (Cons 10 $ Cons 10 $ Cons 10 $ Cons 10 Nil)
 petriNetEx = PetriNet{wPlus=wPlusEx,wMinus=wMinusEx,occupationNumbers=occupationNumbersEx,placeCapacities=boundsEx}
---(S $ S $ S $ S Z,S $ S Z)
+-- t0 can fire but t1 cannot, so new1Ex is okay but new2Ex is Nothing
+new1Ex = fireTransition (Just petriNetEx) 0
+new2Ex = fireTransition (Just petriNetEx) 1
+
+blockEx = blockDiagonal (SS $ SS SZ) (SS $ SS $ SS $ SS SZ) (SS $ SS SZ) (SS $ SS $ SS $ SS SZ) wPlusEx wMinusEx
+
+disjointUnion :: SNat n1 -> SNat t1 -> SNat n2 -> SNat t2 -> (PetriNet n1 t1) -> (PetriNet n2 t2) -> (PetriNet (Plus n1 n2) (Plus t1 t2))
+disjointUnion myN1 myT1 myN2 myT2 petri1 petri2 = PetriNet{wPlus = blockDiagonal myT1 myN1 myT2 myN2 (wPlus petri1) (wPlus petri2),
+                                                           wMinus = blockDiagonal myT1 myN1 myT2 myN2 (wMinus petri1) (wMinus petri2),
+                                                           occupationNumbers = appendLists (occupationNumbers petri1) (occupationNumbers petri2),
+                                                           placeCapacities = appendBounds (placeCapacities petri1) (placeCapacities petri2)}
 
 -- store a prefix tree, where the paths are prefixes. The information stored at the vertices is
 -- the bounds on the incoming occupationNumbers if that firing sequence is to be sensible and the change in occupationNumbers
