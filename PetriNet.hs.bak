@@ -7,6 +7,7 @@ module PetriNet where
 
 import qualified Data.Set as Set
 import Data.Maybe
+--import Numeric.LinearAlgebra.Data
 --import Data.Trie
 
 data Nat = Z | S Nat
@@ -52,12 +53,24 @@ g :: (a -> b -> c) -> List n a -> List n b -> List n c
 g f (Cons x xs) (Cons y ys) = Cons (f x y) $ g f xs ys
 g f Nil Nil = Nil
 
+g0 :: (a -> b) -> List n a -> List n b
+g0 f (Cons x xs) = Cons (f x) (g0 f xs)
+g0 _ Nil = Nil
+
 -- adding vectors of length n
 listAdd :: (Num a) => List n a -> List n a -> List n a
 listAdd = g (\x y -> x+y)
 --subtracting vectors of length n
 listSub :: (Num a) => List n a -> List n a -> List n a
 listSub = g (\x y -> x-y)
+--cumulative sum
+listSum :: (Num a) => List n a -> a
+listSum Nil = 0
+listSum (Cons x xs) = x + (listSum xs)
+--cumulative product
+listProd :: (Num a) => List n a -> a
+listProd Nil = 1
+listProd (Cons x xs) = x * (listProd xs)
 -- and of all the booleans in this list
 andAll :: List n Bool -> Bool
 andAll Nil = True
@@ -148,6 +161,8 @@ disjointUnion myN1 myT1 myN2 myT2 petri1 petri2 = PetriNet{wPlus = blockDiagonal
                                                            occupationNumbers = appendLists (occupationNumbers petri1) (occupationNumbers petri2),
                                                            placeCapacities = appendBounds (placeCapacities petri1) (placeCapacities petri2)}
 
+petriNetEx2 = disjointUnion (SS $ SS $ SS $ SS SZ) (SS $ SS SZ) (SS $ SS $ SS $ SS SZ) (SS $ SS SZ) petriNetEx petriNetEx
+
 -- store a prefix tree, where the paths are prefixes. The information stored at the vertices is
 -- the bounds on the incoming occupationNumbers if that firing sequence is to be sensible and the change in occupationNumbers
 -- if that firing sequence were executed
@@ -177,3 +192,31 @@ disjointUnion myN1 myT1 myN2 myT2 petri1 petri2 = PetriNet{wPlus = blockDiagonal
 --getFirable (Just Leaf{myBounds=_,overallChange=_,firable=_}) _ = Nothing
 --getFirable (Just (InternalNode{myBounds=_,overallChange=_,firable=x},_)) [] = Just x
 --getFirable (Just (_,y)) x:xs = getBoundsWord (subTrie x y) 
+
+data ChemicalRxnNetwork n t = ChemicalRxnNetwork{inputs :: Matrix t n Int, outputs :: Matrix t n Int, concentrations :: List n Double, rateConstants :: List t Double}
+
+disjointUnionRxn :: SNat n1 -> SNat t1 -> SNat n2 -> SNat t2 -> (ChemicalRxnNetwork n1 t1) -> (ChemicalRxnNetwork n2 t2) -> (ChemicalRxnNetwork (Plus n1 n2) (Plus t1 t2))
+disjointUnionRxn myN1 myT1 myN2 myT2 rxnNet1 rxnNet2 = ChemicalRxnNetwork{inputs = blockDiagonal myT1 myN1 myT2 myN2 (inputs rxnNet1) (inputs rxnNet2),
+                                                           outputs = blockDiagonal myT1 myN1 myT2 myN2 (outputs rxnNet1) (outputs rxnNet2),
+                                                           concentrations = appendLists (concentrations rxnNet1) (concentrations rxnNet2),
+                                                           rateConstants = appendLists (rateConstants rxnNet1) (rateConstants rxnNet2)}
+
+singleRxnRateEq :: List n Int -> List n Int -> Double -> List n Double -> List n Double
+singleRxnRateEq myIn myOut rateConstant concentrations = g0 (\x -> (fromIntegral x)*rateConstant*helper) myOut where
+                                                                helper = (listProd (g (\c i -> c^i) concentrations myIn))
+multipleRxnRateEq :: SNat n -> Matrix t n Int -> Matrix t n Int -> List t Double -> List n Double -> List n Double
+multipleRxnRateEq myN Nil Nil Nil _ = myReplicate myN 0.0
+multipleRxnRateEq myN (Cons in1 inRest) (Cons out1 outRest) (Cons rateConstant1 rateConstantRest) concentrations = listAdd firstContrib restContrib where 
+                                                                                                                   firstContrib = singleRxnRateEq in1 out1 rateConstant1 concentrations,
+                                                                                                                   restContrib = multipleRxnRateEq myN inRest outRest rateConstantRest concentrations
+-- example with X + ATP -> XP + ADP
+exampleSingleRxnRateEq = singleRxnRateEq (Cons 1 $ Cons 1 $ Cons 0 $ Cons 0 Nil) (Cons 0 $ Cons 0 $ Cons 1 $ Cons 1 Nil) 0.5 (Cons 0.5 $ Cons 10.0 $ Cons 0.0 $ Cons 10.0 Nil)
+
+rateEquation :: SNat n -> ChemicalRxnNetwork n t -> List n Double
+--rateEquation rxnNet = rates for each of the n molecules/complexes
+rateEquation myN rxnNet = multipleRxnRateEq myN (inputs rxnNet) (outputs rxnNet) (rateConstants rxnNet) (concentrations rxnNet)
+rateEquationTimeStep :: SNat n -> ChemicalRxnNetwork n t -> Double -> ChemicalRxnNetwork n t
+rateEquationTimeStep myN rxnNet timeStep = ChemicalRxnNetwork{inputs=(inputs rxnNet),outputs=(outputs rxnNet),concentrations=newConc,rateConstants=(rateConstants rxnNet)} where
+                                       newConc = listAdd (concentrations rxnNet) (g0 (\x -> x*timeStep) (rateEquation myN rxnNet))
+--conservedQuantities :: ChemicalRxnNetwork n t -> [List n Int]
+--conservedQuantities rxnNet = [conservedQuantity_i] -- Needs nullspace from Numeric.LinearAlgebra
