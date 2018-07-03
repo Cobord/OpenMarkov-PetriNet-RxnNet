@@ -84,6 +84,16 @@ getElement :: Int -> List n a -> Maybe a
 getElement 0 (Cons x _) = Just x
 getElement m (Cons x xs) = getElement (m-1) xs
 getElement _ _ = Nothing
+--keepSelected
+desiredLength :: List t Bool -> Nat
+desiredLength Nil = Z
+desiredLength (Cons False xs) = desiredLength xs
+desiredLength (Cons True xs) = S $ desiredLength xs
+keepSelected :: SNat t2 -> List t Bool -> List t a -> List t2 a
+keepSelected SZ Nil Nil = Nil
+keepSelected (SS z) (Cons True xs) (Cons y ys) = Cons y (keepSelected z xs ys)
+keepSelected z (Cons False xs) (Cons y ys) = keepSelected z xs ys
+keepSelected _ _ _ = error "not correct length"
 
 appendLists :: List n a -> List m a -> List (Plus n m) a
 appendLists (Cons x xs) ys = Cons x (appendLists xs ys)
@@ -207,7 +217,7 @@ singleRxnRateEq myIn myOut rateConstant concentrations = g0 (\x -> (fromIntegral
 multipleRxnRateEq :: SNat n -> Matrix t n Int -> Matrix t n Int -> List t Double -> List n Double -> List n Double
 multipleRxnRateEq myN Nil Nil Nil _ = myReplicate myN 0.0
 multipleRxnRateEq myN (Cons in1 inRest) (Cons out1 outRest) (Cons rateConstant1 rateConstantRest) concentrations = listAdd firstContrib restContrib where 
-                                                                                                                   firstContrib = singleRxnRateEq in1 out1 rateConstant1 concentrations,
+                                                                                                                   firstContrib = singleRxnRateEq in1 out1 rateConstant1 concentrations
                                                                                                                    restContrib = multipleRxnRateEq myN inRest outRest rateConstantRest concentrations
 -- example with X + ATP -> XP + ADP
 exampleSingleRxnRateEq = singleRxnRateEq (Cons 1 $ Cons 1 $ Cons 0 $ Cons 0 Nil) (Cons 0 $ Cons 0 $ Cons 1 $ Cons 1 Nil) 0.5 (Cons 0.5 $ Cons 10.0 $ Cons 0.0 $ Cons 10.0 Nil)
@@ -218,5 +228,20 @@ rateEquation myN rxnNet = multipleRxnRateEq myN (inputs rxnNet) (outputs rxnNet)
 rateEquationTimeStep :: SNat n -> ChemicalRxnNetwork n t -> Double -> ChemicalRxnNetwork n t
 rateEquationTimeStep myN rxnNet timeStep = ChemicalRxnNetwork{inputs=(inputs rxnNet),outputs=(outputs rxnNet),concentrations=newConc,rateConstants=(rateConstants rxnNet)} where
                                        newConc = listAdd (concentrations rxnNet) (g0 (\x -> x*timeStep) (rateEquation myN rxnNet))
---conservedQuantities :: ChemicalRxnNetwork n t -> [List n Int]
---conservedQuantities rxnNet = [conservedQuantity_i] -- Needs nullspace from Numeric.LinearAlgebra
+
+-- TODO: to make or import from a linear algebra module
+nullspaceInt :: Matrix t n Int -> [List n Int]
+nullspaceInt _ = []
+--TODO: find a way to get rid of numKept being provided. Want to just provide the rateCutoff
+conservedQuantities :: ChemicalRxnNetwork n t -> [List n Int]
+conservedQuantities rxnNet = nullspaceInt $ g2 (\x y -> x-y) (inputs rxnNet) (outputs rxnNet)
+whichSlowReactions :: ChemicalRxnNetwork n t -> Double -> List t Bool
+whichSlowReactions rxnNet rateCutoff = g0 (\x -> x>rateCutoff) (rateConstants rxnNet)
+eliminateSlowReactions :: SNat t2 -> Double -> ChemicalRxnNetwork n t -> ChemicalRxnNetwork n t2
+eliminateSlowReactions numKept rateCutoff rxnNet = ChemicalRxnNetwork{inputs=newIns,outputs=newOuts,concentrations=(concentrations rxnNet),rateConstants=newRateConstants} where
+                                           selection=whichSlowReactions rxnNet rateCutoff
+                                           newIns=keepSelected numKept selection (inputs rxnNet)
+                                           newOuts=keepSelected numKept selection (outputs rxnNet)
+                                           newRateConstants = keepSelected numKept selection (rateConstants rxnNet)
+--quasiconservedQuantities :: ChemicalRxnNetwork n t -> Double -> [List n Int]
+--quasiconservedQuantities rxnNet rateCutoff = conservedQuantities $ eliminateSlowReactions rxnNet cutoff
