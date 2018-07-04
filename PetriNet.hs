@@ -171,6 +171,30 @@ disjointUnion myN1 myT1 myN2 myT2 petri1 petri2 = PetriNet{wPlus = blockDiagonal
                                                            occupationNumbers = appendLists (occupationNumbers petri1) (occupationNumbers petri2),
                                                            placeCapacities = appendBounds (placeCapacities petri1) (placeCapacities petri2)}
 
+data Ordinal (n :: Nat) deriving Eq where
+  OZ :: Ordinal (S n)
+  OS :: Ordinal n -> Ordinal (S n)
+
+asInteger :: Ordinal n -> Int
+asInteger OZ = 0
+asInteger (OS x) = 1+ (asInteger x)
+  
+instance Show (Ordinal n) where
+  show x = show asInteger x
+
+sIndex :: Ordinal n -> List n a -> a
+sIndex OZ     (Cons x _)  = x
+sIndex (OS n) (Cons _ xs) = sIndex n xs
+														   
+--TODO: identify two or more places into one
+--collapseManyPlacesHelper0 :: (Num a) => List n1 a -> [Ordinal n1] -> SNat n2 -> List n2 a
+-- on wPlus and wMinus add all the contributions from the things that will get collapsed
+--collapseManyPlacesHelper1 :: Matrix t1 n1 -> [Ordinal n1] -> SNat n2 -> Matrix t1 n2
+-- for occupationNumbers add up the entries that will get collapsed so can use collapseManyPlacesHelper0
+-- for placeCapacities use the intersection of all the bounds
+--collapseManyPlacesHelper3 :: Bounds n1 -> [Ordinal n1] -> SNat n2 -> Bounds n2
+--collapseManyPlaces :: (PetriNet n1 t1) -> [Ordinal n1] -> SNat n2 -> PetriNet n2 t1
+
 petriNetEx2 = disjointUnion (SS $ SS $ SS $ SS SZ) (SS $ SS SZ) (SS $ SS $ SS $ SS SZ) (SS $ SS SZ) petriNetEx petriNetEx
 
 -- store a prefix tree, where the paths are prefixes. The information stored at the vertices is
