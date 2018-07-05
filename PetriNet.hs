@@ -125,6 +125,12 @@ withinBounds occupationNumbers (lowerBounds :< upperBounds) = andAll (g (\x y ->
 
 data PetriNet n t = PetriNet{wPlus :: Matrix t n Int, wMinus :: Matrix t n Int, occupationNumbers :: List n Int, placeCapacities :: Bounds n}
 
+myShow :: PetriNet n t -> [Char]
+myShow petri1 = (show $ wPlus petri1) ++ ("\n") ++ (show $ wMinus petri1) ++ ("\n") ++ (show $ occupationNumbers petri1) ++ "\n"
+
+instance Show (PetriNet n t) where
+   show petri1 = myShow petri1
+
 -- a transition is fired in two steps, one is the input into the transition state
 -- the second is the output from intermediate transition state into the outputs
 -- this is done to avoid the possibility of needing the outputs of the transition to be able to fire
@@ -171,31 +177,61 @@ disjointUnion myN1 myT1 myN2 myT2 petri1 petri2 = PetriNet{wPlus = blockDiagonal
                                                            occupationNumbers = appendLists (occupationNumbers petri1) (occupationNumbers petri2),
                                                            placeCapacities = appendBounds (placeCapacities petri1) (placeCapacities petri2)}
 
-data Ordinal (n :: Nat) deriving Eq where
-  OZ :: Ordinal (S n)
-  OS :: Ordinal n -> Ordinal (S n)
+-- first input has True at the places that will get collapsed into one
+-- so all but the first of them should not be kept
+-- everything else gets marked True for keepSelected
+toKeep :: List n Bool -> Bool -> List n Bool
+toKeep Nil _ = Nil
+toKeep (Cons True xs) False = Cons True (toKeep xs True)
+toKeep (Cons True xs) True = Cons False (toKeep xs True)
+toKeep (Cons False xs) alreadyFound = Cons True (toKeep xs alreadyFound)
 
-asInteger :: Ordinal n -> Int
-asInteger OZ = 0
-asInteger (OS x) = 1+ (asInteger x)
-  
-instance Show (Ordinal n) where
-  show x = show asInteger x
+-- f will either be the sum of numbers so \x y -> x+y
+-- or intersection of bounds which uses max or min
+collapseManyPlacesHelper0 :: a -> (a -> a -> a) -> List n1 a -> List n1 Bool -> a
+collapseManyPlacesHelper0 defaultVal _ _ Nil = defaultVal
+collapseManyPlacesHelper0 defaultVal f (Cons _ xs) (Cons False ys) = collapseManyPlacesHelper0 defaultVal f xs ys
+collapseManyPlacesHelper0 defaultVal f (Cons x xs) (Cons True ys) = f x (collapseManyPlacesHelper0 defaultVal f xs ys)
 
-sIndex :: Ordinal n -> List n a -> a
-sIndex OZ     (Cons x _)  = x
-sIndex (OS n) (Cons _ xs) = sIndex n xs
-														   
---TODO: identify two or more places into one
---collapseManyPlacesHelper0 :: (Num a) => List n1 a -> [Ordinal n1] -> SNat n2 -> List n2 a
--- on wPlus and wMinus add all the contributions from the things that will get collapsed
---collapseManyPlacesHelper1 :: Matrix t1 n1 -> [Ordinal n1] -> SNat n2 -> Matrix t1 n2
--- for occupationNumbers add up the entries that will get collapsed so can use collapseManyPlacesHelper0
--- for placeCapacities use the intersection of all the bounds
---collapseManyPlacesHelper3 :: Bounds n1 -> [Ordinal n1] -> SNat n2 -> Bounds n2
---collapseManyPlaces :: (PetriNet n1 t1) -> [Ordinal n1] -> SNat n2 -> PetriNet n2 t1
+-- replaces all the places that have True in the second input list by the third input replaceValue
+collapseManyPlacesHelper1 :: List n1 a -> List n1 Bool -> a -> List n1 a
+collapseManyPlacesHelper1 Nil Nil replaceValue = Nil
+collapseManyPlacesHelper1 (Cons x xs) (Cons True ys) replaceValue = Cons replaceValue (collapseManyPlacesHelper1 xs ys replaceValue)
+collapseManyPlacesHelper1 (Cons x xs) (Cons False ys) replaceValue = Cons x (collapseManyPlacesHelper1 xs ys replaceValue)
+
+-- find the sum/max/min as appropriate, replace all the ones that get collapsed by that value, then remove the extraneous places
+collapseManyPlacesHelper2 :: a -> (a -> a -> a) -> List n1 Bool -> SNat n2  -> List n1 a -> List n2 a
+collapseManyPlacesHelper2 defaultVal f ys myN xs = keepSelected myN keepSelectedHelper (collapseManyPlacesHelper1 xs ys replaceValue) where
+                                        replaceValue = collapseManyPlacesHelper0 defaultVal f xs ys
+                                        keepSelectedHelper = toKeep ys False
+
+collapseManyPlacesHelper3 :: (Num a) => List n1 Bool -> SNat n2 -> List n1 a -> List n2 a
+collapseManyPlacesHelper3 = collapseManyPlacesHelper2 0 (\x y -> x+y)
+
+collapseManyPlacesHelper4 :: (Num a) => List n1 Bool -> SNat n2 -> Matrix t1 n1 a -> Matrix t1 n2 a
+collapseManyPlacesHelper4 ys myN = g0 (\xs -> collapseManyPlacesHelper3 ys myN xs)
+
+collapseManyPlacesHelper5 :: List n1 Bool -> SNat n2 -> List n1 Int -> List n2 Int
+collapseManyPlacesHelper5 = collapseManyPlacesHelper2 (minBound::Int) (\x y -> max x y)
+
+collapseManyPlacesHelper6 :: List n1 Bool -> SNat n2 -> List n1 Int -> List n2 Int
+collapseManyPlacesHelper6 = collapseManyPlacesHelper2 (maxBound::Int) (\x y -> min x y)
+
+collapseManyPlacesHelper7 :: List n1 Bool -> SNat n2 -> Bounds n1 -> Bounds n2
+collapseManyPlacesHelper7 ys myN (lb :< ub) = (collapseManyPlacesHelper5 ys myN lb) :< (collapseManyPlacesHelper6 ys myN ub)
+
+collapseManyPlaces :: (PetriNet n1 t1) -> List n1 Bool -> SNat n2 -> PetriNet n2 t1
+collapseManyPlaces startingNet toCollapse myN = PetriNet{wPlus = collapseManyPlacesHelper4 toCollapse myN (wPlus startingNet),
+                                                         wMinus = collapseManyPlacesHelper4 toCollapse myN (wMinus startingNet),
+                                                         occupationNumbers = collapseManyPlacesHelper3 toCollapse myN (occupationNumbers startingNet),
+                                                         placeCapacities = collapseManyPlacesHelper7 toCollapse myN (placeCapacities startingNet)}
 
 petriNetEx2 = disjointUnion (SS $ SS $ SS $ SS SZ) (SS $ SS SZ) (SS $ SS $ SS $ SS SZ) (SS $ SS SZ) petriNetEx petriNetEx
+
+whichToCollapse = Cons True $ Cons False $ Cons False $ Cons False $ Cons True $ Cons True $ Cons False $ Cons False Nil
+howManyLeft = SS $ SS $ SS $ SS $ SS $ SS SZ
+
+petriNetEx3 = collapseManyPlaces petriNetEx2 whichToCollapse howManyLeft
 
 -- store a prefix tree, where the paths are prefixes. The information stored at the vertices is
 -- the bounds on the incoming occupationNumbers if that firing sequence is to be sensible and the change in occupationNumbers
