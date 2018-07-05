@@ -271,6 +271,13 @@ disjointUnionRxn myN1 myT1 myN2 myT2 rxnNet1 rxnNet2 = ChemicalRxnNetwork{inputs
                                                            concentrations = appendLists (concentrations rxnNet1) (concentrations rxnNet2),
                                                            rateConstants = appendLists (rateConstants rxnNet1) (rateConstants rxnNet2)}
 
+-- problem adding concentrations when collapsing rather than averaging them
+collapseManyPlacesRxn :: (ChemicalRxnNetwork n1 t1) -> List n1 Bool -> SNat n2 -> ChemicalRxnNetwork n2 t1
+collapseManyPlacesRxn rxnNet toCollapse myN = ChemicalRxnNetwork{inputs = collapseManyPlacesHelper4 toCollapse myN (inputs rxnNet),
+                                                         outputs = collapseManyPlacesHelper4 toCollapse myN (outputs rxnNet),
+                                                         concentrations = collapseManyPlacesHelper3 toCollapse myN (concentrations rxnNet),
+                                                         rateConstants = (rateConstants rxnNet)}
+
 singleRxnRateEq :: List n Int -> List n Int -> Double -> List n Double -> List n Double
 singleRxnRateEq myIn myOut rateConstant concentrations = g0 (\x -> (fromIntegral x)*rateConstant*helper) myOut where
                                                                 helper = (listProd (g (\c i -> c^i) concentrations myIn))

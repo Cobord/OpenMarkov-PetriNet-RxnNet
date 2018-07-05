@@ -198,7 +198,6 @@ collapseManyPlacesHelper1 :: List n1 a -> List n1 Bool -> a -> List n1 a
 collapseManyPlacesHelper1 Nil Nil replaceValue = Nil
 collapseManyPlacesHelper1 (Cons x xs) (Cons True ys) replaceValue = Cons replaceValue (collapseManyPlacesHelper1 xs ys replaceValue)
 collapseManyPlacesHelper1 (Cons x xs) (Cons False ys) replaceValue = Cons x (collapseManyPlacesHelper1 xs ys replaceValue)
-collapseManyPlacesHelper1 _ _ _ = error "Shouldn't be here"
 
 -- find the sum/max/min as appropriate, replace all the ones that get collapsed by that value, then remove the extraneous places
 collapseManyPlacesHelper2 :: a -> (a -> a -> a) -> List n1 Bool -> SNat n2  -> List n1 a -> List n2 a
