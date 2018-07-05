@@ -33,7 +33,7 @@ data SNat n where
 instance Show (SNat n) where
   show SZ = "SZ"
   show (SS x) = "SS " ++ (show x)
-  
+
 -- make a vector of length n filled with same things
 myReplicate :: SNat n -> a -> List n a
 myReplicate SZ     _ = Nil
@@ -42,6 +42,16 @@ myReplicate (SS n) a = Cons a (myReplicate n a)
 sumNat2 :: SNat n -> SNat m -> SNat (Plus n m)
 sumNat2 SZ x = x
 sumNat2 (SS x) y = SS (sumNat2 x y)
+
+-- shorthand for commonly used SNat's
+SNatZero = SZ
+SNatOne = SS SNatOne
+SNatTwo = SS SNatOne
+SNatThree = SS SNatTwo
+SNatFour = SS SNatThree
+SNatFive = SS SNatFour
+SNatSix = SS SNatFive
+SNatSeven = SS SNatSix
 
 -- Just for visualization (a better instance would work with read)
 instance Show a => Show (List n a) where
@@ -169,7 +179,7 @@ petriNetEx = PetriNet{wPlus=wPlusEx,wMinus=wMinusEx,occupationNumbers=occupation
 new1Ex = fireTransition (Just petriNetEx) 0
 new2Ex = fireTransition (Just petriNetEx) 1
 
-blockEx = blockDiagonal (SS $ SS SZ) (SS $ SS $ SS $ SS SZ) (SS $ SS SZ) (SS $ SS $ SS $ SS SZ) wPlusEx wMinusEx
+blockEx = blockDiagonal SNatTwo SNatFour SNatTwo SNatFour wPlusEx wMinusEx
 
 disjointUnion :: SNat n1 -> SNat t1 -> SNat n2 -> SNat t2 -> (PetriNet n1 t1) -> (PetriNet n2 t2) -> (PetriNet (Plus n1 n2) (Plus t1 t2))
 disjointUnion myN1 myT1 myN2 myT2 petri1 petri2 = PetriNet{wPlus = blockDiagonal myT1 myN1 myT2 myN2 (wPlus petri1) (wPlus petri2),
@@ -226,12 +236,10 @@ collapseManyPlaces startingNet toCollapse myN = PetriNet{wPlus = collapseManyPla
                                                          occupationNumbers = collapseManyPlacesHelper3 toCollapse myN (occupationNumbers startingNet),
                                                          placeCapacities = collapseManyPlacesHelper7 toCollapse myN (placeCapacities startingNet)}
 
-petriNetEx2 = disjointUnion (SS $ SS $ SS $ SS SZ) (SS $ SS SZ) (SS $ SS $ SS $ SS SZ) (SS $ SS SZ) petriNetEx petriNetEx
+petriNetEx2 = disjointUnion SNatFour SNatTwo SNatFour SNatTwo petriNetEx petriNetEx
 
 whichToCollapse = Cons True $ Cons False $ Cons False $ Cons False $ Cons True $ Cons True $ Cons False $ Cons False Nil
-howManyLeft = SS $ SS $ SS $ SS $ SS $ SS SZ
-
-petriNetEx3 = collapseManyPlaces petriNetEx2 whichToCollapse howManyLeft
+petriNetEx3 = collapseManyPlaces petriNetEx2 whichToCollapse SNatSix
 
 -- store a prefix tree, where the paths are prefixes. The information stored at the vertices is
 -- the bounds on the incoming occupationNumbers if that firing sequence is to be sensible and the change in occupationNumbers
@@ -271,7 +279,7 @@ disjointUnionRxn myN1 myT1 myN2 myT2 rxnNet1 rxnNet2 = ChemicalRxnNetwork{inputs
                                                            concentrations = appendLists (concentrations rxnNet1) (concentrations rxnNet2),
                                                            rateConstants = appendLists (rateConstants rxnNet1) (rateConstants rxnNet2)}
 
--- problem adding concentrations when collapsing rather than averaging them
+-- problem adding concentrations when collapsing rather than weighted averaging them
 collapseManyPlacesRxn :: (ChemicalRxnNetwork n1 t1) -> List n1 Bool -> SNat n2 -> ChemicalRxnNetwork n2 t1
 collapseManyPlacesRxn rxnNet toCollapse myN = ChemicalRxnNetwork{inputs = collapseManyPlacesHelper4 toCollapse myN (inputs rxnNet),
                                                          outputs = collapseManyPlacesHelper4 toCollapse myN (outputs rxnNet),
