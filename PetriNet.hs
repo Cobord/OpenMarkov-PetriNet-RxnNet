@@ -44,14 +44,14 @@ sumNat2 SZ x = x
 sumNat2 (SS x) y = SS (sumNat2 x y)
 
 -- shorthand for commonly used SNat's
-SNatZero = SZ
-SNatOne = SS SNatOne
-SNatTwo = SS SNatOne
-SNatThree = SS SNatTwo
-SNatFour = SS SNatThree
-SNatFive = SS SNatFour
-SNatSix = SS SNatFive
-SNatSeven = SS SNatSix
+sNatZero = SZ
+sNatOne = SS sNatZero
+sNatTwo = SS sNatOne
+sNatThree = SS sNatTwo
+sNatFour = SS sNatThree
+sNatFive = SS sNatFour
+sNatSix = SS sNatFive
+sNatSeven = SS sNatSix
 
 -- Just for visualization (a better instance would work with read)
 instance Show a => Show (List n a) where
@@ -179,7 +179,7 @@ petriNetEx = PetriNet{wPlus=wPlusEx,wMinus=wMinusEx,occupationNumbers=occupation
 new1Ex = fireTransition (Just petriNetEx) 0
 new2Ex = fireTransition (Just petriNetEx) 1
 
-blockEx = blockDiagonal SNatTwo SNatFour SNatTwo SNatFour wPlusEx wMinusEx
+blockEx = blockDiagonal sNatTwo sNatFour sNatTwo sNatFour wPlusEx wMinusEx
 
 disjointUnion :: SNat n1 -> SNat t1 -> SNat n2 -> SNat t2 -> (PetriNet n1 t1) -> (PetriNet n2 t2) -> (PetriNet (Plus n1 n2) (Plus t1 t2))
 disjointUnion myN1 myT1 myN2 myT2 petri1 petri2 = PetriNet{wPlus = blockDiagonal myT1 myN1 myT2 myN2 (wPlus petri1) (wPlus petri2),
@@ -227,6 +227,9 @@ collapseManyPlacesHelper5 = collapseManyPlacesHelper2 (minBound::Int) (\x y -> m
 collapseManyPlacesHelper6 :: List n1 Bool -> SNat n2 -> List n1 Int -> List n2 Int
 collapseManyPlacesHelper6 = collapseManyPlacesHelper2 (maxBound::Int) (\x y -> min x y)
 
+collapseManyPlacesHelper8 :: List n1 Bool -> SNat n2 -> List n1 [Char] -> List n2 [Char]
+collapseManyPlacesHelper8 = collapseManyPlacesHelper2 [] (\x y -> x ++ y)
+
 collapseManyPlacesHelper7 :: List n1 Bool -> SNat n2 -> Bounds n1 -> Bounds n2
 collapseManyPlacesHelper7 ys myN (lb :< ub) = (collapseManyPlacesHelper5 ys myN lb) :< (collapseManyPlacesHelper6 ys myN ub)
 
@@ -236,10 +239,10 @@ collapseManyPlaces startingNet toCollapse myN = PetriNet{wPlus = collapseManyPla
                                                          occupationNumbers = collapseManyPlacesHelper3 toCollapse myN (occupationNumbers startingNet),
                                                          placeCapacities = collapseManyPlacesHelper7 toCollapse myN (placeCapacities startingNet)}
 
-petriNetEx2 = disjointUnion SNatFour SNatTwo SNatFour SNatTwo petriNetEx petriNetEx
+petriNetEx2 = disjointUnion sNatFour sNatTwo sNatFour sNatTwo petriNetEx petriNetEx
 
 whichToCollapse = Cons True $ Cons False $ Cons False $ Cons False $ Cons True $ Cons True $ Cons False $ Cons False Nil
-petriNetEx3 = collapseManyPlaces petriNetEx2 whichToCollapse SNatSix
+petriNetEx3 = collapseManyPlaces petriNetEx2 whichToCollapse sNatSix
 
 -- store a prefix tree, where the paths are prefixes. The information stored at the vertices is
 -- the bounds on the incoming occupationNumbers if that firing sequence is to be sensible and the change in occupationNumbers
@@ -271,20 +274,22 @@ petriNetEx3 = collapseManyPlaces petriNetEx2 whichToCollapse SNatSix
 --getFirable (Just (InternalNode{myBounds=_,overallChange=_,firable=x},_)) [] = Just x
 --getFirable (Just (_,y)) x:xs = getBoundsWord (subTrie x y) 
 
-data ChemicalRxnNetwork n t = ChemicalRxnNetwork{inputs :: Matrix t n Int, outputs :: Matrix t n Int, concentrations :: List n Double, rateConstants :: List t Double}
+data ChemicalRxnNetwork n t = ChemicalRxnNetwork{inputs :: Matrix t n Int, outputs :: Matrix t n Int, concentrations :: List n Double, rateConstants :: List t Double, moleculeNames :: List n [Char]}
 
 disjointUnionRxn :: SNat n1 -> SNat t1 -> SNat n2 -> SNat t2 -> (ChemicalRxnNetwork n1 t1) -> (ChemicalRxnNetwork n2 t2) -> (ChemicalRxnNetwork (Plus n1 n2) (Plus t1 t2))
 disjointUnionRxn myN1 myT1 myN2 myT2 rxnNet1 rxnNet2 = ChemicalRxnNetwork{inputs = blockDiagonal myT1 myN1 myT2 myN2 (inputs rxnNet1) (inputs rxnNet2),
                                                            outputs = blockDiagonal myT1 myN1 myT2 myN2 (outputs rxnNet1) (outputs rxnNet2),
                                                            concentrations = appendLists (concentrations rxnNet1) (concentrations rxnNet2),
-                                                           rateConstants = appendLists (rateConstants rxnNet1) (rateConstants rxnNet2)}
+                                                           rateConstants = appendLists (rateConstants rxnNet1) (rateConstants rxnNet2),
+                                                           moleculeNames = appendLists (moleculeNames rxnNet1) (moleculeNames rxnNet2)}
 
 -- problem adding concentrations when collapsing rather than weighted averaging them
 collapseManyPlacesRxn :: (ChemicalRxnNetwork n1 t1) -> List n1 Bool -> SNat n2 -> ChemicalRxnNetwork n2 t1
 collapseManyPlacesRxn rxnNet toCollapse myN = ChemicalRxnNetwork{inputs = collapseManyPlacesHelper4 toCollapse myN (inputs rxnNet),
                                                          outputs = collapseManyPlacesHelper4 toCollapse myN (outputs rxnNet),
                                                          concentrations = collapseManyPlacesHelper3 toCollapse myN (concentrations rxnNet),
-                                                         rateConstants = (rateConstants rxnNet)}
+                                                         rateConstants = (rateConstants rxnNet),
+                                                         moleculeNames = collapseManyPlacesHelper8 toCollapse myN (moleculeNames rxnNet)}
 
 singleRxnRateEq :: List n Int -> List n Int -> Double -> List n Double -> List n Double
 singleRxnRateEq myIn myOut rateConstant concentrations = g0 (\x -> (fromIntegral x)*rateConstant*helper) myOut where
@@ -301,7 +306,7 @@ rateEquation :: SNat n -> ChemicalRxnNetwork n t -> List n Double
 --rateEquation rxnNet = rates for each of the n molecules/complexes
 rateEquation myN rxnNet = multipleRxnRateEq myN (inputs rxnNet) (outputs rxnNet) (rateConstants rxnNet) (concentrations rxnNet)
 rateEquationTimeStep :: SNat n -> ChemicalRxnNetwork n t -> Double -> ChemicalRxnNetwork n t
-rateEquationTimeStep myN rxnNet timeStep = ChemicalRxnNetwork{inputs=(inputs rxnNet),outputs=(outputs rxnNet),concentrations=newConc,rateConstants=(rateConstants rxnNet)} where
+rateEquationTimeStep myN rxnNet timeStep = ChemicalRxnNetwork{inputs=(inputs rxnNet),outputs=(outputs rxnNet),concentrations=newConc,rateConstants=(rateConstants rxnNet),moleculeNames=(moleculeNames rxnNet)} where
                                        newConc = listAdd (concentrations rxnNet) (g0 (\x -> x*timeStep) (rateEquation myN rxnNet))
 
 -- TODO: to make or import from a linear algebra module
@@ -313,7 +318,7 @@ conservedQuantities rxnNet = nullspaceInt $ g2 (\x y -> x-y) (inputs rxnNet) (ou
 whichSlowReactions :: ChemicalRxnNetwork n t -> Double -> List t Bool
 whichSlowReactions rxnNet rateCutoff = g0 (\x -> x>rateCutoff) (rateConstants rxnNet)
 eliminateSlowReactions :: SNat t2 -> Double -> ChemicalRxnNetwork n t -> ChemicalRxnNetwork n t2
-eliminateSlowReactions numKept rateCutoff rxnNet = ChemicalRxnNetwork{inputs=newIns,outputs=newOuts,concentrations=(concentrations rxnNet),rateConstants=newRateConstants} where
+eliminateSlowReactions numKept rateCutoff rxnNet = ChemicalRxnNetwork{inputs=newIns,outputs=newOuts,concentrations=(concentrations rxnNet),rateConstants=newRateConstants,moleculeNames=(moleculeNames rxnNet)} where
                                            selection=whichSlowReactions rxnNet rateCutoff
                                            newIns=keepSelected numKept selection (inputs rxnNet)
                                            newOuts=keepSelected numKept selection (outputs rxnNet)
