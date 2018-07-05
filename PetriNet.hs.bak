@@ -104,6 +104,13 @@ keepSelected SZ Nil Nil = Nil
 keepSelected (SS z) (Cons True xs) (Cons y ys) = Cons y (keepSelected z xs ys)
 keepSelected z (Cons False xs) (Cons y ys) = keepSelected z xs ys
 keepSelected _ _ _ = error "not correct length"
+--find a selected a
+findSelected :: (Eq a) => List t a -> a -> Maybe Int
+findSelected Nil _ = Nothing
+findSelected (Cons x xs) y
+                           | x==y = Just 0
+                           | isNothing z = Nothing
+                           | otherwise = Just (1+fromJust z) where z=findSelected xs y
 
 appendLists :: List n a -> List m a -> List (Plus n m) a
 appendLists (Cons x xs) ys = Cons x (appendLists xs ys)
@@ -133,7 +140,7 @@ appendBounds (lb1 :< ub1) (lb2 :< ub2) = (appendLists lb1 lb2) :< (appendLists u
 withinBounds :: List numPlaces Int -> Bounds numPlaces -> Bool
 withinBounds occupationNumbers (lowerBounds :< upperBounds) = andAll (g (\x y -> x<=y) lowerBounds occupationNumbers) && andAll (g (\x y -> x<=y) occupationNumbers upperBounds)
 
-data PetriNet n t = PetriNet{wPlus :: Matrix t n Int, wMinus :: Matrix t n Int, occupationNumbers :: List n Int, placeCapacities :: Bounds n}
+data PetriNet n t = PetriNet{wPlus :: Matrix t n Int, wMinus :: Matrix t n Int, occupationNumbers :: List n Int, placeCapacities :: Bounds n,placeNames :: List n [Char],transitionNames :: List t [Char]}
 
 myShow :: PetriNet n t -> [Char]
 myShow petri1 = (show $ wPlus petri1) ++ ("\n") ++ (show $ wMinus petri1) ++ ("\n") ++ (show $ occupationNumbers petri1) ++ "\n"
@@ -156,15 +163,23 @@ fireTransitionPart1 (Just myPetriNet) myTransition
                                        | otherwise = Nothing
                                        where newPetriNet=PetriNet{wPlus=wPlus myPetriNet,wMinus=wMinus myPetriNet,
                                        occupationNumbers = listSub (occupationNumbers myPetriNet) (fromJust $ getElement myTransition (wMinus myPetriNet)),
-                                       placeCapacities=placeCapacities myPetriNet}
+                                       placeCapacities=placeCapacities myPetriNet,placeNames=placeNames myPetriNet,
+                                       transitionNames=transitionNames myPetriNet}
 fireTransitionPart2 myPetriNet myTransition
                                        | isNothing myPetriNet = Nothing
                                        | withinBounds (occupationNumbers newPetriNet) (placeCapacities newPetriNet)= Just newPetriNet
                                        | otherwise = Nothing
                                        where newPetriNet=PetriNet{wPlus=wPlus $ fromJust myPetriNet,wMinus=wMinus $ fromJust myPetriNet,
-                                       occupationNumbers = listAdd (occupationNumbers $ fromJust myPetriNet) (fromJust $ getElement myTransition $ wPlus $ fromJust myPetriNet ),
-                                       placeCapacities=placeCapacities $ fromJust myPetriNet}
+                                       occupationNumbers = listAdd (occupationNumbers $ fromJust myPetriNet) (fromJust $ getElement myTransition $ wPlus $ fromJust myPetriNet),
+                                       placeCapacities = placeCapacities $ fromJust myPetriNet,placeNames = placeNames $ fromJust myPetriNet,
+                                       transitionNames = transitionNames $ fromJust myPetriNet}
 fireTransition myPetriNet myTransition = fireTransitionPart2 (fireTransitionPart1 myPetriNet myTransition) myTransition
+
+fireTransitionByName :: Maybe (PetriNet n t) -> [Char] -> Maybe (PetriNet n t)
+fireTransitionByName Nothing _ = Nothing
+fireTransitionByName myPetriNet name
+                                    | isNothing z = Nothing
+                                    | otherwise = fireTransition myPetriNet (fromJust z) where z = findSelected (transitionNames $ fromJust myPetriNet) name
 
 wPlusT1Ex = (Cons 0 $ Cons 1 $ Cons 1 $ Cons 0 Nil)
 wPlusT2Ex = (Cons 1 $ Cons 0 $ Cons 0 $ Cons 1 Nil)
@@ -174,10 +189,17 @@ wMinusT2Ex = (Cons 0 $ Cons 1 $ Cons 1 $ Cons 0 Nil)
 wMinusEx = Cons wMinusT1Ex (Cons wMinusT2Ex Nil)
 occupationNumbersEx = Cons 1 $ Cons 0 $ Cons 2 $ Cons 1 Nil
 boundsEx = (Cons 0 $ Cons 0 $ Cons 0 $ Cons 0 Nil) :< (Cons 10 $ Cons 10 $ Cons 10 $ Cons 10 Nil)
-petriNetEx = PetriNet{wPlus=wPlusEx,wMinus=wMinusEx,occupationNumbers=occupationNumbersEx,placeCapacities=boundsEx}
+placeNamesEx0 = Cons "A0" $ Cons "B0" $ Cons "C0" $ Cons "D0" Nil
+placeNamesEx1 = Cons "A1" $ Cons "B1" $ Cons "C1" $ Cons "D1" Nil
+transitionNamesEx0 = Cons "A0->B0C0" $ Cons "B0C0->A0D0" Nil
+transitionNamesEx1 = Cons "A1->B1C1" $ Cons "B1C1->A1D1" Nil
+petriNetEx0 = PetriNet{wPlus=wPlusEx,wMinus=wMinusEx,occupationNumbers=occupationNumbersEx,placeCapacities=boundsEx,placeNames=placeNamesEx0,transitionNames=transitionNamesEx0}
+petriNetEx1 = PetriNet{wPlus=wPlusEx,wMinus=wMinusEx,occupationNumbers=occupationNumbersEx,placeCapacities=boundsEx,placeNames=placeNamesEx1,transitionNames=transitionNamesEx1}
 -- t0 can fire but t1 cannot, so new1Ex is okay but new2Ex is Nothing
-new1Ex = fireTransition (Just petriNetEx) 0
-new2Ex = fireTransition (Just petriNetEx) 1
+new1Ex = fireTransitionByName (Just petriNetEx1) "A1->B1C1"
+new2Ex = fireTransitionByName (Just petriNetEx1) "B1C1->A1D1"
+new3Ex = fireTransitionByName (Just petriNetEx1) "B0C0->A0D0"
+new4Ex = fireTransitionByName (new1Ex) "A1->B1C1"
 
 blockEx = blockDiagonal sNatTwo sNatFour sNatTwo sNatFour wPlusEx wMinusEx
 
@@ -185,7 +207,9 @@ disjointUnion :: SNat n1 -> SNat t1 -> SNat n2 -> SNat t2 -> (PetriNet n1 t1) ->
 disjointUnion myN1 myT1 myN2 myT2 petri1 petri2 = PetriNet{wPlus = blockDiagonal myT1 myN1 myT2 myN2 (wPlus petri1) (wPlus petri2),
                                                            wMinus = blockDiagonal myT1 myN1 myT2 myN2 (wMinus petri1) (wMinus petri2),
                                                            occupationNumbers = appendLists (occupationNumbers petri1) (occupationNumbers petri2),
-                                                           placeCapacities = appendBounds (placeCapacities petri1) (placeCapacities petri2)}
+                                                           placeCapacities = appendBounds (placeCapacities petri1) (placeCapacities petri2),
+                                                           placeNames = appendLists (placeNames petri1) (placeNames petri2),
+                                                           transitionNames = appendLists (transitionNames petri1) (transitionNames petri2)}
 
 -- first input has True at the places that will get collapsed into one
 -- so all but the first of them should not be kept
@@ -228,7 +252,7 @@ collapseManyPlacesHelper6 :: List n1 Bool -> SNat n2 -> List n1 Int -> List n2 I
 collapseManyPlacesHelper6 = collapseManyPlacesHelper2 (maxBound::Int) (\x y -> min x y)
 
 collapseManyPlacesHelper8 :: List n1 Bool -> SNat n2 -> List n1 [Char] -> List n2 [Char]
-collapseManyPlacesHelper8 = collapseManyPlacesHelper2 [] (\x y -> x ++ y)
+collapseManyPlacesHelper8 = collapseManyPlacesHelper2 [] (\x y -> x ++ "=" ++ y)
 
 collapseManyPlacesHelper7 :: List n1 Bool -> SNat n2 -> Bounds n1 -> Bounds n2
 collapseManyPlacesHelper7 ys myN (lb :< ub) = (collapseManyPlacesHelper5 ys myN lb) :< (collapseManyPlacesHelper6 ys myN ub)
@@ -237,9 +261,11 @@ collapseManyPlaces :: (PetriNet n1 t1) -> List n1 Bool -> SNat n2 -> PetriNet n2
 collapseManyPlaces startingNet toCollapse myN = PetriNet{wPlus = collapseManyPlacesHelper4 toCollapse myN (wPlus startingNet),
                                                          wMinus = collapseManyPlacesHelper4 toCollapse myN (wMinus startingNet),
                                                          occupationNumbers = collapseManyPlacesHelper3 toCollapse myN (occupationNumbers startingNet),
-                                                         placeCapacities = collapseManyPlacesHelper7 toCollapse myN (placeCapacities startingNet)}
+                                                         placeCapacities = collapseManyPlacesHelper7 toCollapse myN (placeCapacities startingNet),
+                                                         placeNames = collapseManyPlacesHelper8 toCollapse myN (placeNames startingNet),
+                                                         transitionNames=transitionNames startingNet}
 
-petriNetEx2 = disjointUnion sNatFour sNatTwo sNatFour sNatTwo petriNetEx petriNetEx
+petriNetEx2 = disjointUnion sNatFour sNatTwo sNatFour sNatTwo petriNetEx0 petriNetEx1
 
 whichToCollapse = Cons True $ Cons False $ Cons False $ Cons False $ Cons True $ Cons True $ Cons False $ Cons False Nil
 petriNetEx3 = collapseManyPlaces petriNetEx2 whichToCollapse sNatSix
@@ -289,7 +315,7 @@ collapseManyPlacesRxn rxnNet toCollapse myN = ChemicalRxnNetwork{inputs = collap
                                                          outputs = collapseManyPlacesHelper4 toCollapse myN (outputs rxnNet),
                                                          concentrations = collapseManyPlacesHelper3 toCollapse myN (concentrations rxnNet),
                                                          rateConstants = (rateConstants rxnNet),
-														 moleculeNames = collapseManyPlacesHelper8 toCollapse myN (moleculeNames rxnNet)}
+                                                         moleculeNames = collapseManyPlacesHelper8 toCollapse myN (moleculeNames rxnNet)}
 
 singleRxnRateEq :: List n Int -> List n Int -> Double -> List n Double -> List n Double
 singleRxnRateEq myIn myOut rateConstant concentrations = g0 (\x -> (fromIntegral x)*rateConstant*helper) myOut where
