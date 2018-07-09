@@ -1,0 +1,492 @@
+\documentclass[11pt]{book}
+\usepackage[margin=1in]{geometry} 
+\geometry{letterpaper}   
+
+\usepackage{amsmath}
+\usepackage{url}
+\usepackage{svg}
+\usepackage{amssymb,amsfonts,bbm,mathrsfs,stmaryrd}
+\usepackage{listings}
+
+%%% Theorems and references %%%
+\usepackage[amsmath,thmmarks]{ntheorem}
+\usepackage{hyperref}
+\usepackage{cleveref}
+
+\theoremstyle{change}
+
+\newtheorem{defn}[equation]{Definition}
+\newtheorem{definition}[equation]{Definition}
+\newtheorem{thm}[equation]{Theorem}
+\newtheorem{theorem}[equation]{Theorem}
+\newtheorem{prop}[equation]{Proposition}
+\newtheorem{proposition}[equation]{Proposition}
+\newtheorem{lemma}[equation]{Lemma}
+\newtheorem{cor}[equation]{Corollary}
+\newtheorem{exercise}[equation]{Exercise}
+\newtheorem{example}[equation]{Example}
+
+
+\theorembodyfont{\upshape}
+\theoremsymbol{\ensuremath{\Diamond}}
+\newtheorem{eg}[equation]{Example}
+\newtheorem{remark}[equation]{Remark}
+
+\theoremstyle{nonumberplain}
+
+\theoremsymbol{\ensuremath{\Box}}
+\newtheorem{proof}{Proof}
+
+\qedsymbol{\ensuremath{\Box}}
+
+\creflabelformat{equation}{#2(#1)#3} 
+
+\crefname{equation}{equation}{equations}
+\crefname{eg}{example}{examples}
+\crefname{defn}{definition}{definitions}
+\crefname{prop}{proposition}{propositions}
+\crefname{thm}{Theorem}{Theorems}
+\crefname{lemma}{lemma}{lemmas}
+\crefname{cor}{corollary}{corollaries}
+\crefname{remark}{remark}{remarks}
+\crefname{section}{Section}{Sections}
+\crefname{subsection}{Section}{Sections}
+
+\crefformat{equation}{#2equation~(#1)#3} 
+\crefformat{eg}{#2example~#1#3} 
+\crefformat{defn}{#2definition~#1#3} 
+\crefformat{prop}{#2proposition~#1#3} 
+\crefformat{thm}{#2Theorem~#1#3} 
+\crefformat{lemma}{#2lemma~#1#3} 
+\crefformat{cor}{#2corollary~#1#3} 
+\crefformat{remark}{#2remark~#1#3} 
+\crefformat{section}{#2Section~#1#3} 
+\crefformat{subsection}{#2Section~#1#3} 
+
+\Crefformat{equation}{#2Equation~(#1)#3} 
+\Crefformat{eg}{#2Example~#1#3} 
+\Crefformat{defn}{#2Definition~#1#3} 
+\Crefformat{prop}{#2Proposition~#1#3} 
+\Crefformat{thm}{#2Theorem~#1#3} 
+\Crefformat{lemma}{#2Lemma~#1#3} 
+\Crefformat{cor}{#2Corollary~#1#3} 
+\Crefformat{remark}{#2Remark~#1#3} 
+\Crefformat{section}{#2Section~#1#3} 
+\Crefformat{subsection}{#2Section~#1#3} 
+
+
+\numberwithin{equation}{section}
+
+
+%%% Tikz stuff %%%
+
+\usepackage{tikz}
+\tikzset{dot/.style={circle,draw,fill,inner sep=1pt}}
+\usepackage{braids}
+\usetikzlibrary{cd}
+\usetikzlibrary{arrows}
+
+%%% Letters, Symbols, Words %%%
+
+\newcommand\Aa{{\cal A}}
+\newcommand\Oo{{\cal O}}
+\newcommand\Uu{{\cal U}}
+\newcommand\NN{{\mathbb N}}
+\newcommand\RR{{\mathbb R}}
+\newcommand\Ddd{\mathscr{D}}
+\renewcommand{\d}{{\,\rm d}}
+\newcommand\T{{\rm T}}
+
+\newcommand\mono{\hookrightarrow}
+\newcommand\sminus{\smallsetminus}
+\newcommand\st{{\textrm{ s.t.\ }}}
+\newcommand\ket[1]{\mid #1 \rangle}
+\newcommand\bra[1]{\langle #1 \mid}
+\newcommand\setof[1]{\{ #1 \}}
+\newcommand\lt{<}
+\newcommand\abs[1]{ \mid #1 \mid }
+\newcommand\pfrac[2]{\frac{\partial{#1}}{\partial #2}}
+\newcommand\vev[1]{\langle #1 \rangle}
+
+\DeclareMathOperator{\Aut}{Aut}
+\DeclareMathOperator{\dVol}{dVol}
+\DeclareMathOperator{\ev}{ev}
+\DeclareMathOperator{\fiber}{fiber}
+\DeclareMathOperator{\GL}{GL}
+\DeclareMathOperator{\id}{id}
+\DeclareMathOperator{\sign}{sign}
+\DeclareMathOperator{\tr}{tr}
+\newcommand{\barh}{\bar{h}}
+
+
+\title{Reaction Networks}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\chapter{Petri Nets}
+
+\begin{definition}[Petri Net]
+A Petri net $P$ is a bipartite directed multigraph colored by two letters P and T. The vertices colored P are marked with some natural number of dots each. The multiedges of multiplicity $n$ that go from $p \in P$ to $t \in T$ indicate that when it absorbs transition $t$ needs to take in $n$ dots from the place $P$. A multiedge of multiplicity $m$ from $t \in T$ to $p \in P$ indicates that when $t$ releases, it will produce $m$ dots on the place $p$. A transition firing means that it absorbs then releases. At all stages the number of dots on the vertices must be valid. So a transition may either take a marking $M_1$ to another possibly equal marking $M_2$ or it may be invalid. In the code this is represented with Nothing from the Maybe monad.
+\end{definition}
+
+\begin{definition}[Reachability]
+A marking $M_2$ is reachable from a marking $M_1$ if there is some sequence of valid transition firings that take one from $M_1$ to $M_2$. The reachability set $R(P,M_1)$ is the set of such $M_2$.
+\end{definition}
+
+\begin{definition}[Bounded Petri Net]
+For each place $p$ provide two extended integers $lb_p \leq ub_p$ ($\pm \infty$ allowed). Replace the natural number of dots on $p$ to be any integer in the set $[lb_p,ub_p]$. In a usual Petri net all the lower bounds are $0$ and all the upper bounds are $+\infty$. Usually the lower bound of $0$ is implicit. Setting that to $-k$ would be like allowing debt, but only so much before one can't borrow anymore.
+\end{definition}
+
+\begin{lemma}
+If $lb_p=ub_p$, then that vertex $p$ must have exactly $lb_p$ dots which implies no transition can use it as inputs because then there would be too few after the absorbtion nor can it have any transition which outputs to it which would create too many dots. This effectively removes all transtions neighboring $p$ as well the vertex $p$ itself. This leaves a smaller bounded Petri net with equivalent behavior.
+\end{lemma}
+
+\begin{definition}[Integer Petri Net]
+A bounded Petri net with all lower bounds $-\infty$ and all upper bounds $+\infty$.
+\end{definition}
+
+\section{Subclasses}
+
+\subsection{State Machine}
+
+\begin{definition}[State Machine]
+Every transition has one incoming arc, one outgoing arc and all markings have exactly $1$ token over the entire graph. There is a single $p$ that is occupied with $1$ dot and all the rest have $0$ dots. This last condition is even stronger than making a bounded Petri net with all bounds $0 \leq 1$.
+\end{definition}
+
+\begin{lemma}
+Because there is only one dot, only one transition can fire at the same time, but there may still be many options for which transition to choose. There is no concurrency but there is conflict.
+\end{lemma}
+
+\subsection{Marked Graph}
+
+\begin{definition}[Marked Graph]
+Every place has one incoming arc and one outgoing arc.
+\end{definition}
+
+\begin{lemma}
+Because each place has one outgoing arc, one can select all the firable transitions by looking at the targets of the outgoing arcs from all the occupied places and picking the firable subset of those. Those can all happen concurrently.
+\end{lemma}
+
+\subsection{Free Choice Net}
+
+\begin{definition}[Free Choice]
+\end{definition}
+
+\subsection{Asymmetric Confusion Net}
+
+\chapter{Chemical Reaction Networks}
+
+\begin{definition}
+Same underlying graphical structure of the Petri net. However instead of marking the places with natural numbers or integers between $lb_p$ and $ub_p$, they are marked with nonnegative real numbers for the concentrations. The transitions indicate reactions and are marked with two real numbers $t_{fwd}$ and $t_{bwd}$ so that the rate of the forward reaction is proportional to $t_{fwd}$ through the law of mass action and the backward is proportional to $t_{bwd}$.
+\end{definition}
+
+\begin{lemma}
+For a chemical reaction network on $N$ number of places, we get a polynomial vector field on $\mathbb{R}_{\geq 0}^N$. The $N$ components of this vector field in the coordinate vector fields $\frac{\partial}{\partial X_i}$ are $\frac{d}{dT} [X_i]$ as determined by the law of mass action
+
+\begin{eqnarray*}
+\frac{d}{dT} [X_p] &=& - \sum_{t \mid (pt) \in E}  mult(pt) t_{fwd} \prod_{(qt) \in E} [X_q]^{mult(qt)}\\
+&+& \sum_{t \mid (tp) \in E} mult(tp) t_{fwd} \prod_{(qt) \in E} [X_q]^{mult(qt)}\\
+&+& \sum_{t \mid (pt) \in E} mult(pt) t_{bwd} \prod_{(tq) \in E} [X_q]^{mult(qt)}\\
+&-& \sum_{t \mid (tp) \in E} mult(tp) t_{bwd} \prod_{(tq) \in E} [X_q]^{mult(qt)}\\
+\end{eqnarray*}
+
+\end{lemma}
+
+\begin{definition}[Equilibrium]
+A point in $\mathbb{R}_{\geq 0}^N$ is called an equilibrium if it is a $0$ for this vector field.
+\end{definition}
+
+\begin{definition}[Conserved Quantities]
+Keep only the data of the bipartite directed multigraph. Define the $R$ by $N$ integer matrix whose $ij$ entry is the difference of how many molecule $j$ reaction $i$ outputs minus the number that it inputs. The kernel of this matrix defines conserved quantities.
+\end{definition}
+
+\section{Detailed Balance}
+
+Let there be $N$ total possible molecules in the network and $R$ reactions. We may ask for each reaction in the network to be in detailed equilibrium.
+
+\begin{definition}[Detailed Balance]
+
+A reaction $X_1 + \cdots X_r \to Y_1 \cdots Y_p$ (possible repeats for multiplicities) with forward rate $k_{fwd}$ and backwards rate $k_{bwd}$ is said to be in detailed balance if
+
+\begin{eqnarray*}
+k_{fwd} [X_1] \cdots [X_r] &=& k_{bwd} [Y_1] \cdots [Y_p]
+\end{eqnarray*}
+
+The entire network is in detailed balance if this is true for all reactions.
+\end{definition}
+
+\begin{remark}
+This is a priori stronger than simply equilibrium where it is possible for multiple transitions to conspire to cancel out. In detailed balance, each $t$ contributes $0$.
+\end{remark}
+
+\begin{definition}[Detailed Balance Variety]
+
+The equations for each reaction is a difference of monomials. We can ask for the subset in $\mathbb{R}_{\geq 0}^N$ cut out by all these $R$ equations.
+
+We can forget the nonnegativity and define a variety over any field containing $\mathbb{R}$. We need at least $\mathbb{R}$ because all the rate constants come as real numbers. If they came as rationals, then we would have been able to define the variety over any field containing $\mathbb{Q}$. Call this variety over the reals, the detailed balance variety. Call the subset of the closed points that satisfy the nonnegativity constraints as the nonnegative part of the detailed balance variety.
+\end{definition}
+
+\begin{lemma}[Gibbs]
+For each reaction $X_1 + \cdots X_r \to Y_1 \cdots Y_p$, with constants $k_{fwd}$ and $k_{bwd}$
+
+\begin{eqnarray*}
+\frac{k_{fwd}}{k_{bwd}} &=& \frac{ [Y_1] \cdots [Y_p] }{[X_1] \cdots [X_r]} = e^{- \frac{\Delta G^o}{RT}}
+\end{eqnarray*}
+\end{lemma}
+
+\section{Coupling}
+
+\begin{definition}[Coupling]
+Let $R_1$ be a reaction network and $R_2$ be the same reaction network but with the addition of a few more transitions to represent additionally allowed reactions. In this case, call $R_2$ a coupling of $R_1$.
+\end{definition}
+
+\begin{example}
+$R_1$ is the reaction network with places for ATP, ADP, P, XP, X, Y and XY. The transitions in $R_1$ are $\alpha = X + Y \to XY$ and $\beta = ATP \to ADP + P$. The place $XP$ is just an isolated vertex with no transitions.\\
+
+Then add two more transitions $\gamma = ATP + X \to XP + ADP$ and $\delta = XP + Y \to XY + P$
+\end{example}
+
+\begin{definition}[Quasi-conserved quantities]
+If $R_2$ is an addition of transitions from $R_1$, then all of the conserved quantities of $R_2$ remain as conserved quantities for $R_1$. In addition, there may be new conserved quantities. Call these additional quantities quasi-conserved quantities. An extreme example, would be if $R_2$ had all chemistry reactions that involved those $N$ molecules. In that case the only conserved quantities would come from conservation of numbers of different atoms because $R_2$ would have extreme reactions that break everything into constituent atoms and put them back together. One could go even further if one wants to allow all physical process including radioactivity as well. In that case there would be even fewer conserved quantities.
+\end{definition}
+
+\begin{lemma}
+The detailed balance variety of $R_2$ is given by adding more equations from the detailed balance variety of $R_1$. This gives the map $DBV(R_2) \hookrightarrow DBV(R_1)$.
+\end{lemma}
+
+\begin{definition}[Inclusion]
+Let $R_3$ be a reaction network and $R_4$ the result of adding some number of isolated places disjoint without any transitions connected to them.
+\end{definition}
+
+\begin{lemma}
+The conserved quantities for $R_4$ are the direct sum of the conserved quantities for $R_3$ and the span of the coordinate vectors for the new molecules.
+\end{lemma}
+
+\begin{lemma}
+If you add a disjoint place, then there is a projection from the nonnegative part of the detailed balance variety for $R_4$ to that of $R_3$ given by forgetting the concentrations of the new molecules. That is $DBV(R_4) \twoheadrightarrow DBV(R_3)$
+\end{lemma}
+
+\begin{example}
+
+Continuing the notation of the ATP example. $R_1 \cdots R_3$ have all the molecules and the reactions they are labelled by. $R_4$ does not have $XP$.
+
+\begin{tikzcd}
+& DBV(R_2 = \alpha \beta \gamma \delta) \arrow[rd,hookrightarrow]\\
+DBV(R_1 = \alpha \beta) \arrow[d,two heads] \arrow[ru,hookleftarrow]& & DBV(R_3 = \gamma \delta)\\
+DBV(R_0 = \alpha \beta \setminus (XP))
+\end{tikzcd}
+\end{example}
+
+\subsection{Collapse}
+
+\begin{definition}[Collapse]
+Suppose $R_6$ is given by imposing an equivalence relation on the places of $R_5$. If $X_1 \cdots X_n$ get identified and given the new name $Y_1$, then either $[Y_1] = \frac{1}{L} \sum L [X_i]$ if one is thinking they should all be in a volume $L$ and the total volume remains $L$ or $[Y_1] = \frac{1}{nL} \sum L [X_i]$ if one is thinking that the volume should grow to $nL$ from mixing. Call whatever that map is $\phi$ from $\mathbb{R}_{\geq 0}^N$ to $\mathbb{R}_{\geq 0}^{M}$ where the $N$ different molecules of $R_5$ have been collapsed into $M$ equivilance classes for $R_6$. The vector field pushes forward. Does it match with what expect from $R_6$????
+\end{definition}
+
+\begin{lemma}
+Let $\Delta_{R_5 \to R_6}$ be the product of diagonals in $\mathbb{R}_{\geq 0}^N$ given by imposing $x_{i_1} = x_{i_2}$ for all pairs that get identified under the equivilence relation. Is this a useful definition???????
+How are $DBV(R_5)$ and $DBV(R_6)$ related???????
+\end{lemma}
+
+
+
+\subsection{Affine Toric Varieties Appendix}
+
+\subsubsection{Coordinate Expression}
+
+\begin{definition}[Affine Toric Variety]
+
+For $m \in M = \mathbb{Z}^n$
+
+\begin{eqnarray*}
+\phi_m  &\in& (\mathbb{C}^*)^n \to (\mathbb{C}^*)\\
+\phi_m (t_1 \cdots t_n) &=& \prod_i t_i^{i_i}\\
+\end{eqnarray*}
+
+For an integer $n \times s$ matrix $A$ define the map
+
+\begin{eqnarray*}
+\phi_A &\in& (\mathbb{C}^*)^n \to (\mathbb{C}^*)^s\\
+\phi_A &=& (\phi_{m_1}, \cdots \phi_{m_s})
+\end{eqnarray*}
+
+where each $m_i$ is a column of $A$.
+
+Then take the Zariski closure in $(\mathbb{C})^s$. That variety is called $Y_A$.
+
+\end{definition}
+
+\begin{example}
+\begin{eqnarray*}
+A &=& \begin{pmatrix}
+1 & 3\\
+2 & -1\\
+3 & 0
+\end{pmatrix}\\
+\phi_A (t_1 , t_2 , t_3 ) &=& (t_1^1 t_2^2 t_3^3 , t_1^3 t_2^{-1} t_3^0 )
+\end{eqnarray*}
+\end{example}
+
+\begin{theorem}
+Generated by differences of monomials.
+\end{theorem}
+
+\begin{proof}
+Let $L$ be the lattice of linear dependencies for the columns $m_i$.
+
+\begin{eqnarray*}
+\ell &\in& \mathbb{Z}^s\\
+\sum \ell_i m_i &=& 0\\
+\end{eqnarray*}
+
+This is the kernel of $A$ as a map $\mathbb{Z}^s \to \mathbb{Z}^n$.
+
+Write $\ell = \ell_+ - \ell_-$
+
+\begin{eqnarray*}
+\ell_+ &=& \sum_{\ell_i > 0} \ell_i e_i\\
+\ell_- &=& - \sum_{\ell_i < 0} \ell_i e_i\\
+\end{eqnarray*}
+
+The difference of monomials $\prod_i x_i^{\ell_{+,i}} - \prod_i x_i^{\ell_{-,i}}$ vanishes on the image of $\phi_A$ and it's Zariski closure.
+
+These are in the ideal for $Y_A$ and in fact generate that ideal.
+
+\end{proof}
+
+\subsubsection{Coordinate Free}
+
+For $Y_A$, let $Q$ be the lattice spanned by the $m_i$ columns of $A$. This gets included into $\mathbb{Z}^n$.
+
+\begin{center}
+\begin{tikzcd}
+0 \arrow[r] & Q \arrow[r] & \mathbb{Z}^n \arrow[r] & B \arrow[r] & 0
+\end{tikzcd}
+\end{center}
+
+where $B$ is the cokernel to finish off the exact triangle. $B$ is $\mathbb{Z}^{n-s} \bigoplus Torsion$. Applying $Hom (-,\mathbb{C}^*)$
+
+\begin{center}
+\begin{tikzcd}
+1 \arrow[r] & G=B^{\vee} \arrow[r] & (\mathbb{C}^*)^n \arrow[r,"\phi_A"] & Hom(Q,\mathbb{C}^*) \arrow[r] & 1
+\end{tikzcd}
+\end{center}
+
+of abelian groups written multiplicitavely.
+
+\begin{definition}[Invariant Ring]
+$S^G = \mathbb{C}[x_1 \cdots x_n]^G$ with associated affine variety.
+
+$Spec S^G = \mathbb{C}^n //_{affine} G = Spec (\mathbb{C}[\mathbb{N}^n \bigcap Q])$. $\mathbb{C}^n //_{affine} G$ indicates affine GIT quotient. Expect dimension $n-(n-s)=s$.
+\end{definition}
+
+Apply $Hom (- , \mathbb{Z})$ instead gives
+
+\begin{center}
+\begin{tikzcd}
+0 \arrow[r] & Hom(B,\mathbb{Z}) \arrow[r] & \mathbb{Z}^n \arrow[r] & Hom(Q,\mathbb{Z}) \arrow[r] & Ext^1 (B,\mathbb{Z}) \arrow[r] & 0\\
+0 \arrow[r] & Hom(B,\mathbb{Z}) \arrow[r] & \mathbb{Z}^n \arrow[r] & Q^\vee \arrow[r] & Ext^1 (B,\mathbb{Z}) \arrow[r] & 0\\
+\end{tikzcd}
+\end{center}
+
+\begin{definition}[Projective Toric Variety]
+For $b \in B$, define $S_{(b)} = \bigoplus_i \mathbb{C}[x_1 \cdots x_n]_{i*b}$ because $S$ is graded by $B$. $S_{(b)}$ is graded by $\mathbb{N}$. $Proj S_{(b)}$ is the projective GIT quotient at $b$. One automatically has a map $\mathbb{C}^n //_{proj,b} G \to \mathbb{C}^n //_{aff} G$
+\end{definition}
+
+\subsubsection{Categorical aspects}
+
+One can ask for morphisms between toric varieties in three obvious ways.
+
+\begin{itemize}
+\setlength\itemsep{-1em}
+\item Polynomial maps in local coordinates as for usual varieties.\\
+\item Polynomial maps in the global homogenous coordinates.\\
+\item Toric morphisms are algebraic morphisms that respect the torus action.\\
+\end{itemize}
+
+The second and third are more specialized cases of the first.
+
+\begin{lemma}
+Toric geometry is a functor from fans and fan morphisms to toric varieties and toric morphisms.
+\end{lemma}
+
+\subsubsection{Relation to Detailed Balance Varieties}
+
+There are coefficients $k_{fwd}$ and $k_{bwd}$ so not directly of the form differences of monomials as above. Treat them as variables, then later impose $k_{fwd} = k$ for it's values. This gives a specific kind of subscheme of a toric variety.
+
+It is intersecting a toric variety with a bunch of complex codimension 1 hyperplanes by setting all the rate constants to their values.
+
+\begin{lemma}
+What sort of morphism is the one for adding an extra equation as in coupling for reaction networks by adding extra reactions????\\
+What sort of morphism is the one for adding an extra molecule that simply drops one of the variables???????\\
+\end{lemma}
+
+\begin{thm}
+Looks like we have a functor from reaction networks and inclusions thereof to specific kind of subschemes of affine toric varieties and scheme maps.
+\end{thm}
+
+\section{Identification from Data}
+
+Suppose one is given many observations of concentrations $[X_1] \cdots [X_n]$ such that each observation is of a detailed balance equilibrium. The goal is to form a plausible reaction network.
+
+\begin{eqnarray*}
+k_{fwd} [X_1]^{in_1} \cdots [X_n]^{in_n} &=& k_{bwd} [X_1]^{out_1} \cdots [X_n]^{out_n}\\
+\sum (in_i - out_i) \log [X_i] &=& \log \frac{k_{bwd}}{k_{fwd}}\\
+\begin{pmatrix}
+\log [X_1]_{o1} & \log [X_2]_{o1} & \cdots & \log [X_n]_{o1} \\
+\log [X_1]_{o2} & \log [X_2]_{o2} & \cdots & \log [X_n]_{o2} \\
+\cdots & \cdots & \cdots & \cdots\\
+\log [X_1]_{oM} & \log [X_2]_{oM} & \cdots & \log [X_n]_{oM} \\
+\end{pmatrix}
+\begin{pmatrix}
+in_1 - out_1\\
+in_2 - out_2\\
+\cdots\\
+in_n - out_n\\
+\end{pmatrix}
+&=& \begin{pmatrix}
+1\\
+1\\
+\cdots\\
+1\\
+\end{pmatrix} (\log \frac{k_{bwd}}{k_{fwd}} )\\
+\begin{pmatrix}
+\log [X_1]_{o2} - \log [X_1]_{o1} & \log [X_2]_{o2} - \log [X_2]_{o1} & \cdots & \log [X_n]_{o2} - \log [X_n]_{o1} \\
+\cdots & \cdots & \cdots & \cdots\\
+\log [X_1]_{oM} - \log [X_1]_{o1} & \log [X_2]_{oM} - \log [X_2]_{o1} & \cdots & \log [X_n]_{oM} - \log [X_n]_{o1}\\
+\end{pmatrix}
+\begin{pmatrix}
+in_1 - out_1\\
+in_2 - out_2\\
+\cdots\\
+in_n - out_n\\
+\end{pmatrix}
+&=& \begin{pmatrix}
+0\\
+0\\
+\cdots\\
+0\\
+\end{pmatrix}
+\end{eqnarray*}
+
+Solve that last equation over the integers to get $in_i - out_i$. In particular find the solution with the smallest $\ell^1$ norm possible. Then plug that into the second to last equation to recover $(\log \frac{k_{bwd}}{k_{fwd}} )$
+
+If $A_i \equiv in_i - out_i < 0$ take $in_i = 0$ and $out_i = -A_i$. If $A_i > 0$ then take $in_i = A_i$ and $out_i=0$. If it is $0$ then take both to be $0$. Solve for $K \equiv \frac{k_{fwd}}{k_{bwd}}$ and set $k_{fwd}=K*r$ and $k_{bwd}=r$ where $r>0$ is a free parameter that we will optimize over.
+
+This is the basic reaction. Also add reactions that have the same net behavior but add $\sum n_i [X_i]$ to both sides of the equations for all $\vec{n}$ with $\abs{ \vec{n} }_1 \leq N$ for some small $N \approx 2$ (up to you). They have their own $r$ values. This adds $f(N,n)$ reactions for every basic reaction. We expect only $1$ of them will be correct. One of the $[X_i]$ might be a catalyst that is on both sides of the reaction, so the basic reaction is not correct.
+
+Repeat for the solution with the next smallest $\ell^1$ norm and keep doing this until we have enough candidate reactions. Do not check if this is in the span of those already found. For example, in terms of net vectors $\alpha + \beta = \gamma + \delta$, but all four are in the example reaction network.
+
+Use the number of reactions that one expects the reaction to be made up of (based on intuition from similar systems like a citric acid cycle or urea cycle) to get a gauge of how many times to repeat. Actually each candidate reaction is a 1 parameter family with their own $r$ values. We want some extra because data from nonequilibrium dynamics will eliminate some of the possibilities.
+
+\section{Similar Code}
+
+\url{https://github.com/enricozb/python-crn}\\
+\url{https://github.com/barronh/permm}\\
+\url{https://arxiv.org/pdf/1509.05153.pdf}\\
+\url{https://arxiv.org/ftp/arxiv/papers/1412/1412.6346.pdf}
+
+\end{document}
