@@ -409,9 +409,21 @@ One can ask for morphisms between toric varieties in three obvious ways.
 
 The second and third are more specialized cases of the first.
 
-\begin{lemma}
-Toric geometry is a functor from fans and fan morphisms to toric varieties and toric morphisms.
-\end{lemma}
+\begin{definition}
+Let Toric be the category with objects (not necessarily affine) toric varieties over $k$. Denote an object $X_1$ with $T_1 \subset X_1$ and morphisms are equivariant morphisms $X_1 \to X_2$ extending a homomorphism of tori $T_1 \to T_2$.
+\end{definition}
+
+\begin{definition}
+Let the category Fan be the category whose objects are fans $\Delta_1$ in $N_1 \otimes \mathbb{R}$. The morphisms are group homomorphisms $N_1 \to N_2$ that send each cone $\sigma \in \Delta_1$ into some cone $\tau \in \Delta_2$.
+\end{definition}
+
+\begin{theorem}
+The correspondence between fans and toric varieties gives an equivalence of categories between Toric and Fan.
+\end{theorem}
+
+\begin{proof}
+As theorem 2.1 of \url{https://arxiv.org/pdf/1503.04343.pdf}. See sources cited within.
+\end{proof}
 
 \subsubsection{Relation to Detailed Balance Varieties}
 
