@@ -140,6 +140,8 @@ A marking $M_2$ is reachable from a marking $M_1$ if there is some sequence of v
 For each place $p$ provide two extended integers $lb_p \leq ub_p$ ($\pm \infty$ allowed). Replace the natural number of dots on $p$ to be any integer in the set $[lb_p,ub_p]$. In a usual Petri net all the lower bounds are $0$ and all the upper bounds are $+\infty$. Usually the lower bound of $0$ is implicit. Setting that to $-k$ would be like allowing debt, but only so much before one can't borrow anymore.
 \end{definition}
 
+This is the case implemented by PetriNet.hs
+
 \begin{lemma}
 If $lb_p=ub_p$, then that vertex $p$ must have exactly $lb_p$ dots which implies no transition can use it as inputs because then there would be too few after the absorbtion nor can it have any transition which outputs to it which would create too many dots. This effectively removes all transtions neighboring $p$ as well the vertex $p$ itself. This leaves a smaller bounded Petri net with equivalent behavior.
 \end{lemma}
@@ -204,6 +206,8 @@ For a chemical reaction network on $N$ number of places, we get a polynomial vec
 \end{eqnarray*}
 
 \end{lemma}
+
+Because of the similar data structure used, this is also contained in PetriNet.hs
 
 \begin{definition}[Equilibrium]
 A point in $\mathbb{R}_{\geq 0}^N$ is called an equilibrium if it is a $0$ for this vector field.
@@ -459,6 +463,8 @@ Looks like we have a functor from reaction networks and inclusions thereof to sp
 
 \section{Identification from Data}
 
+This is in rxnNtwkId.py
+
 Suppose one is given many observations of concentrations $[X_1] \cdots [X_n]$ such that each observation is of a detailed balance equilibrium. The goal is to form a plausible reaction network.
 
 \begin{eqnarray*}
@@ -517,5 +523,124 @@ Use the number of reactions that one expects the reaction to be made up of (base
 \url{https://github.com/barronh/permm}\\
 \url{https://arxiv.org/pdf/1509.05153.pdf}\\
 \url{https://arxiv.org/ftp/arxiv/papers/1412/1412.6346.pdf}
+
+\chapter{OpenMarkovTensorFlow}
+
+There is a Jupyter and a regular py version.
+
+\url{http://math.ucr.edu/home/baez/coarse_graining.pdf}
+
+timeStep takes care of the operation $p \to e^{Ht} p + inRate*t - outRate*t$ for $H$ the stochastic matrix and provided vectors of the inflow and outflow rates. Those are initialized with tf.scatter to put them in the correct entries of the vector.
+
+Disjoint union is implemented, but unlike PetriNet.hs identifying multiple places into one is not implemented. That is the function coarseGrain that just returns 0.
+
+displayGraph makes a directed graph where the blue vertices have inFlow, the red vertices have outflow, the black vertices are the ordinary vertices. There are edges between vertices $i$ and $j$ whenever the stochastic matrix $H$ has $\abs{H_{ij}}$ bigger than some numerical cutoff. That prevents cluttering the graph with edges that are essentially not there.
+
+\chapter{Glauber Couplings.ipynb}
+
+\url{https://arxiv.org/pdf/1803.04738.pdf}
+
+\begin{definition}[Glauber Dynamics]
+$\vec{s}(t)$ are the $\pm 1$ variables representing Ising sping state of atom $i$ at time $t$.
+
+\begin{eqnarray*}
+P ( \vec{s}(t+1) \mid \vec{s}(t) ) &=& \prod_{i=1}^N \frac{ e^{s_i (t+1) H_i (t)}}{e^{H_i (t)} + e^{- H_i (t)}}\\
+H_i (t) &=& h_i (t) + \sum J_{ij} s_j (t)\\
+\end{eqnarray*}
+
+This does an effective magnetization $H_i$ by an external $h_i$ combined with the effect of the neighbors.
+
+\end{definition}
+
+We just see a sample trajectory from this dynamics. From this $J$ is estimated.
+
+\begin{eqnarray*}
+J^{est} &=& A^{-1} D C^{-1}\\
+A_{ij} &=& (1 - m_i^2 ) \delta_{ij}\\
+m_i &=& \langle s_i (t) \rangle\\
+C_{ij} &=& \langle s_i (t) s_j (t) \rangle - m_i m_j\\
+D_{ij} &=& \langle s_i (t+1) s_j (t) \rangle - m_i m_j\\
+\end{eqnarray*}
+
+\chapter{Evolutionary}
+
+\section{Evolutionary Graph.ipynb}
+
+\url{https://www.quantamagazine.org/mathematics-shows-how-to-ensure-evolution-20180626/}
+
+Make an Erdos-Renyi random graph with numNodes as the number of individuals. pErdosRenyi is a parameter for the probability of edges. If there is an edge that represents that those two individuals can compete where one dies and the other gets to reproduce and have it's child occupy that node. The individuals are all initialized with some random fitnesses. The edges are randomly weighted.
+
+doARound carries out the following procedure
+
+\begin{itemize}
+\setlength\itemsep{-1em}
+\item Randomly choose an individual $A$ to reproduce with probability distribution weighted based on fitness.\\
+\item Select a neighbor $B$ of that individual with probability distribution based on edge weights.\\
+\item Replace that neighbor $B$ with the child of $A$ who has the same fitness that $A$ did.
+\end{itemize}
+
+Repeat this round for timeLength times and plot the average fitness as a function of time. It tends to increase because the more fit reproduce more and replace the less fit. But it is not completely monotone because there are small chances for less fit individuals to reproduce.
+
+\section{Evolutionary Game}
+
+\cite{Wakeley}
+
+Let there be a two player symmetric game where each player has $K$ strategies counted as $1 \cdots K$. The payoffs $p_{ij}$ are the probabilities for survival when you play strategy $i$ and they play strategy $j$. If the opponent dies, there are simply $p_{i0}$ probabilities when you play strategy $i$ and you're opponent is dead. There are $N$ rounds of this.
+
+Suppose you have to choose one of those pure strategies at the beginning of those $N$ rounds and can't change it. Then the probabilities of survival become a payoff matrix for a symmetric game with $K$ strategies with entries being functions of $N$. Call these $q_{ij} (N)$. To find $q_{ij} (N)$, make a Markov model and take it to the $N$'th power and use that to find you're probability of survival with you in strategy $i$ and opponent in strategy $j$. For $j \neq i$, this is the sum of probabilities where $ij \to ij$ and $ij \to i$. Those account for the probability you both survive and the second for the probability only you survive. If $i = j$, then do 1/2 the probability of $ii \to i$ plus the probability of $ii \to ii$.
+
+Imagine a population of these. Let $x_i$ be the proportion of the population choosing strategy $i$. There fitness is the probability of survival when they play this game with a random other member of the population.
+
+\begin{definition}[Replicator Equation]
+\begin{eqnarray*}
+\dot{x}_i &=& x_i (f_i (\vec{x}) - \sum x_j f_j (\vec{x}) )\\
+\sum x_i &=& 1
+\end{eqnarray*}
+
+where $f_i (\vec{x})$ is the fitness of strategy $i$ in the population with given proportions. The last term in the parenthesis is the average fitness of the population. So better than average is rewarded and worse is punished.
+\end{definition}
+
+In this example,
+
+\begin{eqnarray*}
+f_i (\vec{x}) &=& \sum_m x_m q_{im} (N)
+\end{eqnarray*}
+
+As $N$ changes, the equilibria for this differential equation change.
+
+\begin{eqnarray*}
+\dot{x}_i &=& \sum_m x_i x_m q_{im} (N) - \sum_{j,m} x_i x_j x_m q_{jm} (N)\\
+\end{eqnarray*}
+
+This is the general structure whenever the fitness is a linear function of the proportions.
+
+\subsection{Equilibria}
+
+For equilibria, set all $\dot{x}_i = 0$, to get $K$ polynomial equations on these $K$ variables as well as the normalization $\sum x_i = 1$.
+
+Homogenize with an additional variable $z$.
+
+\begin{eqnarray*}
+0 &=& \sum_m z x_i x_m q_{im} (N) - \sum_{j,m} x_i x_j x_m q_{jm} (N)\\
+0 &=& \sum x_i - z\\
+\end{eqnarray*}
+
+Intersecting $K$ cubic hypersurfaces and a hyperplane in $\mathbb{P}(F^{K+1})$. This is $K+1$ equations applied to a $K$ dimensional projective space. Want there to only be isolated points as equilibria so if all $K+1$ of these equations are needed, won't be a complete intersection.
+
+\subsection{Relative Entropy}
+
+Let $I (p(t) \mid q)$ be the relative entropy
+
+\begin{eqnarray*}
+I(p(t) \mid q) &=& \sum q_i \log \frac{ q_i}{p_i (t)}\\
+\frac{d}{dt} I(p(t) \mid q) &=& - \sum q_i \frac{\dot{p_i}}{p_i}\\
+&=& - \sum q_i ( f_i ( \vec{p} ) + \sum p_j f_j (\vec{p}) )\\
+&=& - \sum q_i f_i (\vec{p}) + \sum p_j f_j (\vec{p})\\
+&=& \sum f_j (\vec{p}) (p_i - q_i)\\
+\end{eqnarray*}
+
+\begin{lemma}[Shahshahani]
+If $q_{im} (N) = q_{mi} (N)$ so can find a $V$ such that $f_i = \frac{dV}{dx_i}$ with mixed partials being equal. If this is done then the replicator equation i a gradient flow equation with repsect to the Fisher information metric.
+\end{lemma}
 
 \end{document}
