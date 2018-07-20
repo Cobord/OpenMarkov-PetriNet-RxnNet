@@ -177,6 +177,16 @@ Because each place has one outgoing arc, one can select all the firable transiti
 
 \subsection{Asymmetric Confusion Net}
 
+\section{Combining Petri Nets}
+
+\subsection{Disjoint Union}
+
+First step is disjoint union. This is defined in PetriNet.hs, but requires specifying SNats for the number of places and transitions in each of the constituent nets. This makes sure the types all line up.
+
+\subsection{Identifying many places into one}
+
+This is done by collapseManyPlaces which takes the initial net with n places, a list of n booleans that say true for the places that are subject to identification. The last argument is the number of places that will be there at the end.
+
 \chapter{Chemical Reaction Networks}
 
 \begin{definition}
@@ -430,6 +440,13 @@ As theorem 2.1 of \url{https://arxiv.org/pdf/1503.04343.pdf}. See sources cited 
 There are coefficients $k_{fwd}$ and $k_{bwd}$ so not directly of the form differences of monomials as above. Treat them as variables, then later impose $k_{fwd} = k$ for it's values. This gives a specific kind of subscheme of a toric variety.
 
 It is intersecting a toric variety with a bunch of complex codimension 1 hyperplanes by setting all the rate constants to their values.
+
+\begin{tikzcd}
+DetBalVar \arrow[r] \arrow[d] & pt \arrow[d]\\
+AffTorVar \arrow[r] & \mathbb{F}^{2R}
+\end{tikzcd}
+
+The arrow $pt \to F^{2R}$ picks out the reaction rates for all $2R$ forward and backward reactions. The arrow $AffTorVar \to F^{2R}$ tells all of the reaction rates from the affine toric variety where they are treated as variables. The Detailed Balance Variety sits inside the affine toric variety by matching these two.
 
 \begin{lemma}
 What sort of morphism is the one for adding an extra equation as in coupling for reaction networks by adding extra reactions????\\
