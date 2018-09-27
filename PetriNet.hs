@@ -2,6 +2,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DataKinds, TypeSynonymInstances, TypeFamilies, TypeOperators #-}
 {-# LANGUAGE UndecidableInstances, FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses,FunctionalDependencies #-}
 
 module PetriNet where
 
@@ -20,6 +21,10 @@ convert x
 type family   Plus (n :: Nat) (m :: Nat) :: Nat
 type instance Plus Z m = m
 type instance Plus (S n) m = S (Plus n m)
+
+natPlus :: Nat -> Nat -> Nat
+natPlus Z m = m
+natPlus (S n) m = S $ natPlus n m
 
 -- A List of length 'n' holding values of type 'a'
 data List n a where
@@ -270,6 +275,22 @@ petriNetEx2 = disjointUnion sNatFour sNatTwo sNatFour sNatTwo petriNetEx0 petriN
 
 whichToCollapse = Cons True $ Cons False $ Cons False $ Cons False $ Cons True $ Cons True $ Cons False $ Cons False Nil
 petriNetEx3 = collapseManyPlaces petriNetEx2 whichToCollapse sNatSix
+
+class Kripke a b | a -> b where
+    predicates :: a -> List b Bool
+
+-- only one of the following can be used because of functional dependencies
+instance Kripke (PetriNet n t) Z where
+    predicates petri = Nil
+--instance Kripke (PetriNet n t) (S Z) where
+--    predicates petri = Cons True Nil
+
+-- TODO: Fix this
+--instance ((Kripke a nP),(Kripke b nQ)) => Kripke (a,b) (Plus nP nQ) where
+--   predicates (x,y) = appendLists (predicates x) (predicates y)
+
+kripkeWord :: Kripke a nP => [a] -> [List nP Bool]
+kripkeWord stateSequence = [predicates state | state <- stateSequence]
 
 -- store a prefix tree, where the paths are prefixes. The information stored at the vertices is
 -- the bounds on the incoming occupationNumbers if that firing sequence is to be sensible and the change in occupationNumbers
