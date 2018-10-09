@@ -8,8 +8,7 @@ module PetriNet where
 
 import qualified Data.Set as Set
 import Data.Maybe
---import Numeric.LinearAlgebra.Data
---import Data.Trie
+import qualified Data.Graph as Gr
 
 data Nat = Z | S Nat
 
@@ -62,6 +61,15 @@ sNatSeven = SS sNatSix
 instance Show a => Show (List n a) where
     show Nil = "Nil"
     show (Cons x xs) = show x ++ "-" ++ show xs
+
+instance (Eq a) => Eq (List n a) where
+    (==) Nil Nil = True
+    (==) (Cons x xs) (Cons y ys) = ((x==y) && (xs==ys))
+instance Ord a => Ord (List n a) where
+    (<=) Nil Nil = True
+    (<=) (Cons x xs) (Cons y ys)
+                                 | x==y = (xs <= ys)
+                                 | otherwise=(x <= y)
 
 --do the function f on the list of a's and b's to get a list of c's
 g :: (a -> b -> c) -> List n a -> List n b -> List n c
@@ -116,10 +124,21 @@ findSelected (Cons x xs) y
                            | x==y = Just 0
                            | isNothing z = Nothing
                            | otherwise = Just (1+fromJust z) where z=findSelected xs y
+--different version of keep selected
+keepSelected2 :: List t a -> (a -> Bool) -> [a]
+keepSelected2 Nil _ = []
+keepSelected2 (Cons x xs) selector
+                                  | selector x = x:theRest
+                                  | otherwise = theRest
+                                  where theRest=(keepSelected2 xs selector)
 
 appendLists :: List n a -> List m a -> List (Plus n m) a
 appendLists (Cons x xs) ys = Cons x (appendLists xs ys)
 appendLists Nil ys = ys
+-- 0 through n
+makeUpToT :: SNat t -> List t Int
+makeUpToT SZ = Nil
+makeUpToT (SS z) = Cons 0 (g0 (+1) (makeUpToT z))
 
 type Matrix n m a = List n (List m a)
 -- same as g but on something that is n by m instead of just a 1 dimensional list
@@ -206,6 +225,28 @@ new2Ex = fireTransitionByName (Just petriNetEx1) "B1C1->A1D1"
 new3Ex = fireTransitionByName (Just petriNetEx1) "B0C0->A0D0"
 new4Ex = fireTransitionByName (new1Ex) "A1->B1C1"
 new5Ex = fireTransitionByName (new1Ex) "B1C1->A1D1"
+
+fireAllTransitions :: Maybe (PetriNet n t) -> SNat t -> List t (Maybe (PetriNet n t))
+fireAllTransitions startingNet sT = g0 (\x -> (fireTransition startingNet x)) (makeUpToT sT) 
+neighbors :: Maybe (PetriNet n t) -> SNat t -> [Maybe (PetriNet n t)]
+neighbors startingNet sT = keepSelected2 (fireAllTransitions startingNet sT) (\x -> not $ isNothing x)
+
+--using the standard ordering of vertices on a k-ary tree, makes the list of Maybe PetriNet's
+-- such that the j'th child of the i'th parent is the result of firing the j'th transition from the Maybe PetriNet at i
+parentsAndSiblingOrder k max  = tail [(div (i-1) k,i-1-(div (i-1) k)*k)| i<-[0..max]]
+getAssociatedFunction :: (a -> Int -> a) -> (Int,Int) -> [a] -> a
+getAssociatedFunction f (i,j) xs = f ((!! i) xs) j
+fs :: Maybe (PetriNet n t) -> Int -> Int -> [[Maybe (PetriNet n t)] -> Maybe (PetriNet n t)]
+fs startingNet k max = (const startingNet):[getAssociatedFunction fireTransition pair | pair <- parentsAndSiblingOrder k max]
+loeb :: Functor f => f (f a -> a) -> f a
+loeb x = go where go = fmap ($ go) x
+getEventTree :: Maybe (PetriNet n t) -> Int -> Int -> [Maybe (PetriNet n t)]
+getEventTree startingNet k max = loeb (fs startingNet k max)
+
+createGraph :: (Ord key) => SNat t -> [Maybe (PetriNet n t)] -> (Maybe (PetriNet n t) -> key) -> (Gr.Graph, Gr.Vertex -> ((Maybe (PetriNet n t)), key, [key]), key -> Maybe Gr.Vertex)
+createGraph sT startingNets f = Gr.graphFromEdges [(currentP,f currentP,[f targetP | targetP <- neighbors currentP sT]) | currentP <- startingNets]
+createGraph2 sT startingNets = createGraph sT startingNets (fmap (\x -> occupationNumbers x))
+createGraph3 sT startingNet k max = createGraph2 sT (getEventTree startingNet k max)
 
 blockEx = blockDiagonal sNatTwo sNatFour sNatTwo sNatFour wPlusEx wMinusEx
 
