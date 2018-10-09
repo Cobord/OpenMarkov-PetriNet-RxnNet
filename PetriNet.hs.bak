@@ -233,6 +233,7 @@ neighbors startingNet sT = keepSelected2 (fireAllTransitions startingNet sT) (\x
 
 --using the standard ordering of vertices on a k-ary tree, makes the list of Maybe PetriNet's
 -- such that the j'th child of the i'th parent is the result of firing the j'th transition from the Maybe PetriNet at i
+-- max should be (1+k+\cdots k^{depth})-1 if you want to explore everything reachable in <=depth steps
 parentsAndSiblingOrder k max  = tail [(div (i-1) k,i-1-(div (i-1) k)*k)| i<-[0..max]]
 getAssociatedFunction :: (a -> Int -> a) -> (Int,Int) -> [a] -> a
 getAssociatedFunction f (i,j) xs = f ((!! i) xs) j
@@ -242,10 +243,13 @@ loeb :: Functor f => f (f a -> a) -> f a
 loeb x = go where go = fmap ($ go) x
 getEventTree :: Maybe (PetriNet n t) -> Int -> Int -> [Maybe (PetriNet n t)]
 getEventTree startingNet k max = loeb (fs startingNet k max)
+removeNothings :: [Maybe a] -> [a]
+removeNothings xs = map fromJust $ filter (not . isNothing) xs
 
 createGraph :: (Ord key) => SNat t -> [Maybe (PetriNet n t)] -> (Maybe (PetriNet n t) -> key) -> (Gr.Graph, Gr.Vertex -> ((Maybe (PetriNet n t)), key, [key]), key -> Maybe Gr.Vertex)
 createGraph sT startingNets f = Gr.graphFromEdges [(currentP,f currentP,[f targetP | targetP <- neighbors currentP sT]) | currentP <- startingNets]
 createGraph2 sT startingNets = createGraph sT startingNets (fmap (\x -> occupationNumbers x))
+createGraph3 sT startingNet k max = createGraph2 sT (mappend [Nothing] xs) where xs=(filter (not . isNothing) (getEventTree startingNet k max))
 
 blockEx = blockDiagonal sNatTwo sNatFour sNatTwo sNatFour wPlusEx wMinusEx
 
