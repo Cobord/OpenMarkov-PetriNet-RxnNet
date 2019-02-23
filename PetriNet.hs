@@ -167,7 +167,7 @@ withinBounds occupationNumbers (lowerBounds :< upperBounds) = andAll (g (\x y ->
 data PetriNet n t = PetriNet{wPlus :: Matrix t n Int, wMinus :: Matrix t n Int, occupationNumbers :: List n Int, placeCapacities :: Bounds n,placeNames :: List n [Char],transitionNames :: List t [Char]}
 
 myShow :: PetriNet n t -> [Char]
-myShow petri1 = (show $ wPlus petri1) ++ ("\n") ++ (show $ wMinus petri1) ++ ("\n") ++ (show $ occupationNumbers petri1) ++ "\n"
+myShow petri1 = (show $ wPlus petri1) ++ ("\n") ++ (show $ wMinus petri1) ++ ("\n") ++ (show $ occupationNumbers petri1) ++ "\n" ++ (show $ placeNames petri1) ++ "\n" ++ (show $ transitionNames petri1)
 
 instance Show (PetriNet n t) where
    show petri1 = myShow petri1
@@ -304,7 +304,13 @@ collapseManyPlacesHelper6 :: List n1 Bool -> SNat n2 -> List n1 Int -> List n2 I
 collapseManyPlacesHelper6 = collapseManyPlacesHelper2 (maxBound::Int) (\x y -> min x y)
 
 collapseManyPlacesHelper8 :: List n1 Bool -> SNat n2 -> List n1 [Char] -> List n2 [Char]
-collapseManyPlacesHelper8 = collapseManyPlacesHelper2 [] (\x y -> x ++ "=" ++ y)
+collapseManyPlacesHelper8 = (collapseManyPlacesHelper2 [] (\x y -> x ++ "=" ++ y))
+
+removeLastEquals :: [Char] -> [Char]
+removeLastEquals []=[]
+removeLastEquals ['=']=[]
+removeLastEquals [x] = [x]
+removeLastEquals (x:xs)=x:(removeLastEquals xs)
 
 collapseManyPlacesHelper7 :: List n1 Bool -> SNat n2 -> Bounds n1 -> Bounds n2
 collapseManyPlacesHelper7 ys myN (lb :< ub) = (collapseManyPlacesHelper5 ys myN lb) :< (collapseManyPlacesHelper6 ys myN ub)
@@ -314,7 +320,7 @@ collapseManyPlaces startingNet toCollapse myN = PetriNet{wPlus = collapseManyPla
                                                          wMinus = collapseManyPlacesHelper4 toCollapse myN (wMinus startingNet),
                                                          occupationNumbers = collapseManyPlacesHelper3 toCollapse myN (occupationNumbers startingNet),
                                                          placeCapacities = collapseManyPlacesHelper7 toCollapse myN (placeCapacities startingNet),
-                                                         placeNames = collapseManyPlacesHelper8 toCollapse myN (placeNames startingNet),
+                                                         placeNames = g0 removeLastEquals $ collapseManyPlacesHelper8 toCollapse myN (placeNames startingNet),
                                                          transitionNames=transitionNames startingNet}
 
 petriNetEx2 = disjointUnion sNatFour sNatTwo sNatFour sNatTwo petriNetEx0 petriNetEx1
