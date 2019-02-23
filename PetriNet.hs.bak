@@ -140,6 +140,13 @@ makeUpToT :: SNat t -> List t Int
 makeUpToT SZ = Nil
 makeUpToT (SS z) = Cons 0 (g0 (+1) (makeUpToT z))
 
+removeDuplicates :: Eq a => [a] -> [a]
+removeDuplicates = rdHelper []
+    where rdHelper seen [] = seen
+          rdHelper seen (x:xs)
+              | x `elem` seen = rdHelper seen xs
+              | otherwise = rdHelper (seen ++ [x]) xs
+
 type Matrix n m a = List n (List m a)
 -- same as g but on something that is n by m instead of just a 1 dimensional list
 g2 :: (a -> b -> c) -> (Matrix n m a) -> (Matrix n m b) -> (Matrix n m c)
@@ -155,7 +162,7 @@ verticalBlocks mat1 mat2 = appendLists mat1 mat2
 blockDiagonal :: (Num a) => SNat n1 -> SNat m1 -> SNat n2 -> SNat m2 -> Matrix n1 m1 a -> Matrix n2 m2 a -> Matrix (Plus n1 n2) (Plus m1 m2) a
 blockDiagonal myN1 myM1 myN2 myM2 mat1 mat2 = verticalBlocks (horizantalBlocks mat1 (myReplicate2D myN1 myM2 0)) (horizantalBlocks (myReplicate2D myN2 myM1 0) mat2)
 
-data Bounds n = List n Int :< List n Int
+data Bounds n = List n Int :< List n Int deriving Eq
 
 appendBounds :: Bounds n -> Bounds m -> Bounds (Plus n m)
 appendBounds (lb1 :< ub1) (lb2 :< ub2) = (appendLists lb1 lb2) :< (appendLists ub1 ub2)
@@ -164,7 +171,7 @@ appendBounds (lb1 :< ub1) (lb2 :< ub2) = (appendLists lb1 lb2) :< (appendLists u
 withinBounds :: List numPlaces Int -> Bounds numPlaces -> Bool
 withinBounds occupationNumbers (lowerBounds :< upperBounds) = andAll (g (\x y -> x<=y) lowerBounds occupationNumbers) && andAll (g (\x y -> x<=y) occupationNumbers upperBounds)
 
-data PetriNet n t = PetriNet{wPlus :: Matrix t n Int, wMinus :: Matrix t n Int, occupationNumbers :: List n Int, placeCapacities :: Bounds n,placeNames :: List n [Char],transitionNames :: List t [Char]}
+data PetriNet n t = PetriNet{wPlus :: Matrix t n Int, wMinus :: Matrix t n Int, occupationNumbers :: List n Int, placeCapacities :: Bounds n,placeNames :: List n [Char],transitionNames :: List t [Char]} deriving Eq
 
 myShow :: PetriNet n t -> [Char]
 myShow petri1 = (show $ wPlus petri1) ++ ("\n") ++ (show $ wMinus petri1) ++ ("\n") ++ (show $ occupationNumbers petri1) ++ "\n" ++ (show $ placeNames petri1) ++ "\n" ++ (show $ transitionNames petri1)
@@ -230,6 +237,8 @@ fireAllTransitions :: Maybe (PetriNet n t) -> SNat t -> List t (Maybe (PetriNet 
 fireAllTransitions startingNet sT = g0 (\x -> (fireTransition startingNet x)) (makeUpToT sT) 
 neighbors :: Maybe (PetriNet n t) -> SNat t -> [Maybe (PetriNet n t)]
 neighbors startingNet sT = keepSelected2 (fireAllTransitions startingNet sT) (\x -> not $ isNothing x)
+neighbors2 :: Maybe (PetriNet n t) -> SNat t -> [Maybe (PetriNet n t)]
+neighbors2 startingNet sT = removeDuplicates $ keepSelected2 (fireAllTransitions startingNet sT) (const True)
 
 --using the standard ordering of vertices on a k-ary tree, makes the list of Maybe PetriNet's
 -- such that the j'th child of the i'th parent is the result of firing the j'th transition from the Maybe PetriNet at i
@@ -244,16 +253,17 @@ loeb x = go where go = fmap ($ go) x
 getEventTree :: Maybe (PetriNet n t) -> Int -> Int -> [Maybe (PetriNet n t)]
 getEventTree startingNet k max = loeb (fs startingNet k max)
 getEventTree2 :: Maybe (PetriNet n t) -> Int -> Int -> [Maybe (PetriNet n t)]
-getEventTree2 startingNet k depth = getEventTree startingNet k (quot (k*(k^(depth)-1)) (k-1))
+getEventTree2 startingNet k depth = getEventTree startingNet k (1+quot (k*(k^(depth)-1)) (k-1))
 removeNothings :: [Maybe a] -> [a]
 removeNothings xs = map fromJust $ filter (not . isNothing) xs
 
 --given the total list of markings that we will ever bother to see including Nothing as a sink vertex
 --this graph has arrows for there exists a transition taking you from one to the other
 createGraph :: (Ord key) => SNat t -> [Maybe (PetriNet n t)] -> (Maybe (PetriNet n t) -> key) -> (Gr.Graph, Gr.Vertex -> ((Maybe (PetriNet n t)), key, [key]), key -> Maybe Gr.Vertex)
-createGraph sT startingNets f = Gr.graphFromEdges [(currentP,f currentP,[f targetP | targetP <- neighbors currentP sT]) | currentP <- startingNets]
+createGraph sT startingNets f = Gr.graphFromEdges [(currentP,f currentP,[f targetP | targetP <- neighbors2 currentP sT]) | currentP <- startingNets]
 createGraph2 sT startingNets = createGraph sT startingNets (fmap (\x -> occupationNumbers x))
 createGraph3 sT startingNet k max = createGraph2 sT (mappend [Nothing] xs) where xs=(filter (not . isNothing) (getEventTree startingNet k max))
+createGraph4 sT startingNet k depth = createGraph2 sT (mappend [Nothing] xs) where xs=(filter (not . isNothing) (getEventTree2 startingNet k depth))
 
 blockEx = blockDiagonal sNatTwo sNatFour sNatTwo sNatFour wPlusEx wMinusEx
 
