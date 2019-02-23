@@ -246,6 +246,8 @@ getEventTree startingNet k max = loeb (fs startingNet k max)
 removeNothings :: [Maybe a] -> [a]
 removeNothings xs = map fromJust $ filter (not . isNothing) xs
 
+--given the total list of markings that we will ever bother to see including Nothing as a sink vertex
+--this graph has arrows for there exists a transition taking you from one to the other
 createGraph :: (Ord key) => SNat t -> [Maybe (PetriNet n t)] -> (Maybe (PetriNet n t) -> key) -> (Gr.Graph, Gr.Vertex -> ((Maybe (PetriNet n t)), key, [key]), key -> Maybe Gr.Vertex)
 createGraph sT startingNets f = Gr.graphFromEdges [(currentP,f currentP,[f targetP | targetP <- neighbors currentP sT]) | currentP <- startingNets]
 createGraph2 sT startingNets = createGraph sT startingNets (fmap (\x -> occupationNumbers x))

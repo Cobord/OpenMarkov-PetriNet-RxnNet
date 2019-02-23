@@ -407,6 +407,7 @@ rateEquationTimeStep myN rxnNet timeStep = ChemicalRxnNetwork{inputs=(inputs rxn
 nullspaceInt :: Matrix t n Int -> [List n Int]
 nullspaceInt _ = []
 --TODO: find a way to get rid of numKept being provided. Want to just provide the rateCutoff
+-- DPair(n: Nat)(List n a) is possible in Idris. Look at the docs there
 conservedQuantities :: ChemicalRxnNetwork n t -> [List n Int]
 conservedQuantities rxnNet = nullspaceInt $ g2 (\x y -> x-y) (inputs rxnNet) (outputs rxnNet)
 whichSlowReactions :: ChemicalRxnNetwork n t -> Double -> List t Bool
