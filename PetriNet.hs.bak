@@ -243,6 +243,8 @@ loeb :: Functor f => f (f a -> a) -> f a
 loeb x = go where go = fmap ($ go) x
 getEventTree :: Maybe (PetriNet n t) -> Int -> Int -> [Maybe (PetriNet n t)]
 getEventTree startingNet k max = loeb (fs startingNet k max)
+getEventTree2 :: Maybe (PetriNet n t) -> Int -> Int -> [Maybe (PetriNet n t)]
+getEventTree2 startingNet k depth = getEventTree startingNet k (quot (k*(k^(depth)-1)) (k-1))
 removeNothings :: [Maybe a] -> [a]
 removeNothings xs = map fromJust $ filter (not . isNothing) xs
 
@@ -320,7 +322,7 @@ collapseManyPlaces startingNet toCollapse myN = PetriNet{wPlus = collapseManyPla
                                                          wMinus = collapseManyPlacesHelper4 toCollapse myN (wMinus startingNet),
                                                          occupationNumbers = collapseManyPlacesHelper3 toCollapse myN (occupationNumbers startingNet),
                                                          placeCapacities = collapseManyPlacesHelper7 toCollapse myN (placeCapacities startingNet),
-                                                         placeNames = collapseManyPlacesHelper8 toCollapse myN (placeNames startingNet),
+                                                         placeNames = g0 removeLastEquals $ collapseManyPlacesHelper8 toCollapse myN (placeNames startingNet),
                                                          transitionNames=transitionNames startingNet}
 
 petriNetEx2 = disjointUnion sNatFour sNatTwo sNatFour sNatTwo petriNetEx0 petriNetEx1

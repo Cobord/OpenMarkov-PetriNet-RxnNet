@@ -243,6 +243,8 @@ loeb :: Functor f => f (f a -> a) -> f a
 loeb x = go where go = fmap ($ go) x
 getEventTree :: Maybe (PetriNet n t) -> Int -> Int -> [Maybe (PetriNet n t)]
 getEventTree startingNet k max = loeb (fs startingNet k max)
+getEventTree2 :: Maybe (PetriNet n t) -> Int -> Int -> [Maybe (PetriNet n t)]
+getEventTree2 startingNet k depth = getEventTree startingNet k (quot (k*(k^(depth)-1)) (k-1))
 removeNothings :: [Maybe a] -> [a]
 removeNothings xs = map fromJust $ filter (not . isNothing) xs
 
@@ -252,6 +254,7 @@ createGraph :: (Ord key) => SNat t -> [Maybe (PetriNet n t)] -> (Maybe (PetriNet
 createGraph sT startingNets f = Gr.graphFromEdges [(currentP,f currentP,[f targetP | targetP <- neighbors currentP sT]) | currentP <- startingNets]
 createGraph2 sT startingNets = createGraph sT startingNets (fmap (\x -> occupationNumbers x))
 createGraph3 sT startingNet k max = createGraph2 sT (mappend [Nothing] xs) where xs=(filter (not . isNothing) (getEventTree startingNet k max))
+createGraph4 sT startingNet k depth = createGraph2 sT (mappend [Nothing] xs) where xs=(filter (not . isNothing) (getEventTree2 startingNet k depth))
 
 blockEx = blockDiagonal sNatTwo sNatFour sNatTwo sNatFour wPlusEx wMinusEx
 
