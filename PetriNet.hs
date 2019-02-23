@@ -10,7 +10,7 @@ import qualified Data.Set as Set
 import Data.Maybe
 import qualified Data.Graph as Gr
 
-data Nat = Z | S Nat
+data Nat = Z | S Nat deriving Read
 
 convert :: Int -> Nat
 convert x
@@ -322,6 +322,7 @@ petriNetEx2 = disjointUnion sNatFour sNatTwo sNatFour sNatTwo petriNetEx0 petriN
 whichToCollapse = Cons True $ Cons False $ Cons False $ Cons False $ Cons True $ Cons True $ Cons False $ Cons False Nil
 petriNetEx3 = collapseManyPlaces petriNetEx2 whichToCollapse sNatSix
 
+-- 
 class Kripke a b | a -> b where
     predicates :: a -> List b Bool
 
@@ -331,10 +332,14 @@ instance Kripke (PetriNet n t) Z where
 --instance Kripke (PetriNet n t) (S Z) where
 --    predicates petri = Cons True Nil
 
--- TODO: Fix this
---instance ((Kripke a nP),(Kripke b nQ)) => Kripke (a,b) (Plus nP nQ) where
---   predicates (x,y) = appendLists (predicates x) (predicates y)
+instance ((Kripke a nP),(Kripke b nQ),(nR ~ (Plus nP nQ))) => Kripke (a,b) nR where
+   predicates (x,y) = appendLists (predicates x) (predicates y)
 
+--test case to see if above works, yes
+instance Kripke Int (S(S(Z))) where 
+   predicates x = Cons (x>0) $ Cons (x<10) Nil
+testKripke=predicates ((5,5)::(Int,Int))
+   
 kripkeWord :: Kripke a nP => [a] -> [List nP Bool]
 kripkeWord stateSequence = [predicates state | state <- stateSequence]
 
