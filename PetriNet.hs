@@ -391,7 +391,9 @@ kripkeWord stateSequence = [predicates state | state <- stateSequence]
 --getFirable (Just (InternalNode{myBounds=_,overallChange=_,firable=x},_)) [] = Just x
 --getFirable (Just (_,y)) x:xs = getBoundsWord (subTrie x y) 
 
-data ChemicalRxnNetwork n t = ChemicalRxnNetwork{inputs :: Matrix t n Int, outputs :: Matrix t n Int, concentrations :: List n Double, rateConstants :: List t Double, moleculeNames :: List n [Char]}
+data ChemicalRxnNetwork n t = ChemicalRxnNetwork{inputs :: Matrix t n Int, 
+                                                 outputs :: Matrix t n Int, concentrations :: List n Double, 
+                                                 rateConstants :: List t Double, moleculeNames :: List n [Char]}
 
 disjointUnionRxn :: SNat n1 -> SNat t1 -> SNat n2 -> SNat t2 -> (ChemicalRxnNetwork n1 t1) -> (ChemicalRxnNetwork n2 t2) -> (ChemicalRxnNetwork (Plus n1 n2) (Plus t1 t2))
 disjointUnionRxn myN1 myT1 myN2 myT2 rxnNet1 rxnNet2 = ChemicalRxnNetwork{inputs = blockDiagonal myT1 myN1 myT2 myN2 (inputs rxnNet1) (inputs rxnNet2),

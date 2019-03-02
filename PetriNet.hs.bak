@@ -253,7 +253,7 @@ loeb x = go where go = fmap ($ go) x
 getEventTree :: Maybe (PetriNet n t) -> Int -> Int -> [Maybe (PetriNet n t)]
 getEventTree startingNet k max = loeb (fs startingNet k max)
 getEventTree2 :: Maybe (PetriNet n t) -> Int -> Int -> [Maybe (PetriNet n t)]
-getEventTree2 startingNet k depth = getEventTree startingNet k (1+quot (k*(k^(depth)-1)) (k-1))
+getEventTree2 startingNet k depth = getEventTree startingNet k (quot (k*(k^(depth)-1)) (k-1))
 removeNothings :: [Maybe a] -> [a]
 removeNothings xs = map fromJust $ filter (not . isNothing) xs
 
