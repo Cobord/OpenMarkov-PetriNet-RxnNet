@@ -162,6 +162,14 @@ verticalBlocks mat1 mat2 = appendLists mat1 mat2
 blockDiagonal :: (Num a) => SNat n1 -> SNat m1 -> SNat n2 -> SNat m2 -> Matrix n1 m1 a -> Matrix n2 m2 a -> Matrix (Plus n1 n2) (Plus m1 m2) a
 blockDiagonal myN1 myM1 myN2 myM2 mat1 mat2 = verticalBlocks (horizantalBlocks mat1 (myReplicate2D myN1 myM2 0)) (horizantalBlocks (myReplicate2D myN2 myM1 0) mat2)
 
+transposeVec :: List m a -> Matrix m (S Z) a
+transposeVec Nil = Nil
+transposeVec (Cons x xs) = verticalBlocks (Cons (Cons x Nil) Nil) (transposeVec xs)
+
+transpose :: SNat m -> SNat n -> Matrix n m a -> Matrix m n a
+transpose sM _ Nil = myReplicate sM Nil
+transpose sM (SS sN) (Cons x xs) = horizantalBlocks (transposeVec x) (transpose sM sN xs)
+
 data Bounds n = List n Int :< List n Int deriving Eq
 
 appendBounds :: Bounds n -> Bounds m -> Bounds (Plus n m)
@@ -211,6 +219,9 @@ fireTransitionByName Nothing _ = Nothing
 fireTransitionByName myPetriNet name
                                     | isNothing z = Nothing
                                     | otherwise = fireTransition myPetriNet (fromJust z) where z = findSelected (transitionNames $ fromJust myPetriNet) name
+
+findCatalysts :: SNat n -> SNat t -> PetriNet n t -> List n Bool
+findCatalysts sN sT petri = g (\x y -> x==y) (transpose sN sT $ wPlus petri) (transpose sN sT $ wMinus petri)
 
 wPlusT1Ex = (Cons 0 $ Cons 1 $ Cons 1 $ Cons 0 Nil)
 wPlusT2Ex = (Cons 1 $ Cons 0 $ Cons 0 $ Cons 1 Nil)
@@ -391,7 +402,9 @@ kripkeWord stateSequence = [predicates state | state <- stateSequence]
 --getFirable (Just (InternalNode{myBounds=_,overallChange=_,firable=x},_)) [] = Just x
 --getFirable (Just (_,y)) x:xs = getBoundsWord (subTrie x y) 
 
-data ChemicalRxnNetwork n t = ChemicalRxnNetwork{inputs :: Matrix t n Int, outputs :: Matrix t n Int, concentrations :: List n Double, rateConstants :: List t Double, moleculeNames :: List n [Char]}
+data ChemicalRxnNetwork n t = ChemicalRxnNetwork{inputs :: Matrix t n Int, 
+                                                 outputs :: Matrix t n Int, concentrations :: List n Double, 
+                                                 rateConstants :: List t Double, moleculeNames :: List n [Char]}
 
 disjointUnionRxn :: SNat n1 -> SNat t1 -> SNat n2 -> SNat t2 -> (ChemicalRxnNetwork n1 t1) -> (ChemicalRxnNetwork n2 t2) -> (ChemicalRxnNetwork (Plus n1 n2) (Plus t1 t2))
 disjointUnionRxn myN1 myT1 myN2 myT2 rxnNet1 rxnNet2 = ChemicalRxnNetwork{inputs = blockDiagonal myT1 myN1 myT2 myN2 (inputs rxnNet1) (inputs rxnNet2),

@@ -162,6 +162,14 @@ verticalBlocks mat1 mat2 = appendLists mat1 mat2
 blockDiagonal :: (Num a) => SNat n1 -> SNat m1 -> SNat n2 -> SNat m2 -> Matrix n1 m1 a -> Matrix n2 m2 a -> Matrix (Plus n1 n2) (Plus m1 m2) a
 blockDiagonal myN1 myM1 myN2 myM2 mat1 mat2 = verticalBlocks (horizantalBlocks mat1 (myReplicate2D myN1 myM2 0)) (horizantalBlocks (myReplicate2D myN2 myM1 0) mat2)
 
+transposeVec :: List m a -> Matrix m (S Z) a
+transposeVec Nil = Nil
+transposeVec (Cons x xs) = verticalBlocks (Cons (Cons x Nil) Nil) (transposeVec xs)
+
+transpose :: SNat m -> SNat n -> Matrix n m a -> Matrix m n a
+transpose sM _ Nil = myReplicate sM Nil
+transpose sM (SS sN) (Cons x xs) = horizantalBlocks (transposeVec x) (transpose sM sN xs)
+
 data Bounds n = List n Int :< List n Int deriving Eq
 
 appendBounds :: Bounds n -> Bounds m -> Bounds (Plus n m)
@@ -212,6 +220,9 @@ fireTransitionByName myPetriNet name
                                     | isNothing z = Nothing
                                     | otherwise = fireTransition myPetriNet (fromJust z) where z = findSelected (transitionNames $ fromJust myPetriNet) name
 
+findCatalysts :: SNat n -> SNat t -> PetriNet n t -> List n Bool
+findCatalysts sN sT petri = g (\x y -> x==y) (transpose sN sT $ wPlus petri) (transpose sN sT $ wMinus petri)
+
 wPlusT1Ex = (Cons 0 $ Cons 1 $ Cons 1 $ Cons 0 Nil)
 wPlusT2Ex = (Cons 1 $ Cons 0 $ Cons 0 $ Cons 1 Nil)
 wPlusEx = Cons wPlusT1Ex (Cons wPlusT2Ex Nil)
@@ -232,6 +243,7 @@ new2Ex = fireTransitionByName (Just petriNetEx1) "B1C1->A1D1"
 new3Ex = fireTransitionByName (Just petriNetEx1) "B0C0->A0D0"
 new4Ex = fireTransitionByName (new1Ex) "A1->B1C1"
 new5Ex = fireTransitionByName (new1Ex) "B1C1->A1D1"
+exampleCatalysts = findCatalysts sNatFour sNatTwo petriNetEx0
 
 fireAllTransitions :: Maybe (PetriNet n t) -> SNat t -> List t (Maybe (PetriNet n t))
 fireAllTransitions startingNet sT = g0 (\x -> (fireTransition startingNet x)) (makeUpToT sT) 
